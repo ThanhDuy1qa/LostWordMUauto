@@ -54,7 +54,7 @@ class GameVision:
 class DynamicGroupBot:
     def __init__(self, root):
         self.root = root
-        self.root.title("Api Moriya Unmapped Auto - V38 (Structured Search)")
+        self.root.title("Api Moriya Unmapped Auto")
         self.root.geometry("1000x950")
         
         icon_path = os.path.join(BASE_DIR, "icon.ico")
@@ -678,7 +678,7 @@ class DynamicGroupBot:
     def add_action(self):
         action = self.cbo_action.get()
         if action == "SEPARATOR":
-            self.listbox.insert(tk.END, "[SEPARATOR] -> ========== END OF AREA ==========")
+            self.listbox.insert(tk.END, "[SEPARATOR] -> =============================")
         else:
             self.listbox.insert(tk.END, f"[{action}] -> {self.cbo_target.get()}")
             if action == "END_AREA":
@@ -723,7 +723,7 @@ class DynamicGroupBot:
         if not selected: return
         self.clipboard = [self.listbox.get(i) for i in selected]
         self.root.title(f"Api Moriya Unmapped Auto - V38 (Copied {len(self.clipboard)} lines!)")
-        self.root.after(2000, lambda: self.root.title("Api Moriya Unmapped Auto - V38 (Structured Search)"))
+        self.root.after(2000, lambda: self.root.title("Api Moriya Unmapped Auto"))
 
     def paste_action(self):
         if not self.clipboard: 
@@ -907,7 +907,7 @@ class DynamicGroupBot:
                 continue
                 
             if target_screen == "SELECT_PARTY_SCREEN":
-                pos = self.vision.get_pos("btn_btn_cancel.png")
+                pos = self.vision.get_pos("btn_cancel.png")
                 if pos:
                     print("[+] Party Selection screen detected (Remove button found)!")
                     time.sleep(0.5)
