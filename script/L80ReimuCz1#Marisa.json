@@ -166,7 +166,7 @@
         "[SELECT_BUFF] -> Strict Tier 1",
         "[CHOOSE_DIFFICULTY] -> btn_hard.png",
         "[CLICK] -> Challenge",
-        "[WAIT] -> 3",
+        "[WAIT] -> 5",
         "[CLICK] -> Party Button",
         "[CLICK] -> L80 Reimu Open List",
         "[WAIT_FOR_SCREEN] -> SELECT_PARTY_SCREEN",
@@ -199,7 +199,6 @@
         "[BOOST] -> 1",
         "[CLICK] -> Open Spell",
         "[CLICK] -> L80 Reimu Spell 1",
-        "[CLICK] -> L80 Reimu Skill 2",
         "[BOOST] -> 3",
         "[CLICK] -> Open Spell",
         "[CLICK] -> Cz1# Marisa Spell 2",
@@ -207,6 +206,7 @@
         "[CLICK] -> Open Skill",
         "[CLICK] -> L80 Reimu Spell 2",
         "[CLICK] -> L80 Reimu Skill 1",
+        "[CLICK] -> L80 Reimu Skill 2",
         "[CLICK] -> Close Skill",
         "[BOOST] -> 3",
         "[CLICK] -> Open Spell",
@@ -458,7 +458,8 @@
         "[WAIT_FOR_SCREEN] -> END_BATTLE_SCREEN",
         "[END_AREA] -> None",
         "[SEPARATOR] -> ========== END OF AREA ==========",
-        "[CLICK_SKIP_CORNER] -> 4"
+        "[CLICK_SKIP_CORNER] -> 4",
+        "[CLICK_SKIP_CORNER] -> 5"
     ],
     "char_notes": {
         "1": "L80 Reimu",
