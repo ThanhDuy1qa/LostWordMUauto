@@ -54,7 +54,7 @@ class GameVision:
 class DynamicGroupBot:
     def __init__(self, root):
         self.root = root
-        self.root.title("Api Moriya Unmapped Auto - Advanced Edition")
+        self.root.title("Api Moriya Unmapped Auto")
         self.root.geometry("1050x1000")
         
         icon_path = os.path.join(BASE_DIR, "icon.ico")
@@ -68,15 +68,17 @@ class DynamicGroupBot:
         self.current_area = 1
         self.completed_loops = 0
         self.current_step_idx = 0 
+        self.jump_flag = False 
+        self.last_highlighted_idx = -1 
+        self.jump_area_flag = -1 
         
         self.char_notes = {"1": "", "2": "", "3": ""}
         self.char_note_vars = {}
         self.clipboard = []
         
-        # --- COORDINATE KEYS ---
         self.common_keys = [
             "Open/Close Skill", "Open Spell", "Boost", "Spread Shot", "Focus Shot",
-            "Random Buff", "Skip Corner", "Wave Text" 
+            "Random Buff", "Skip Corner" 
         ]
         self.party_keys = [
             "Main Stage", "Party Button", "Party Back",
@@ -86,10 +88,17 @@ class DynamicGroupBot:
         for i in range(1, 5): self.spell_keys.append(f"Spell {i}")
         self.spell_keys.append("LastWord")
         
+        self.rescue_keys = [
+            "Close Emulator", "Confirm Close Emu", 
+            "Game Desktop Icon", "Full Screen", "Center Screen", 
+            "Enter Game Mode", "Give Up Run"
+        ]
+        
         self.all_possible_keys = []
         self.all_possible_keys.extend(self.common_keys)
         self.all_possible_keys.extend(self.party_keys)
         self.all_possible_keys.extend(self.spell_keys)
+        self.all_possible_keys.extend(self.rescue_keys)
         self.all_possible_keys.extend(["Open Skill", "Close Skill"])
         
         for i in range(1, 4): 
@@ -101,22 +110,20 @@ class DynamicGroupBot:
         self.displayed_keys = []
         self.main_script = [] 
         
-        # Hotkeys
-        self.current_hotkey = None
+        self.current_start_hotkey = None
+        self.current_stop_hotkey = None
         self.current_pause_hotkey = None
-        self.current_skip_hotkey = None
-        self.current_prev_hotkey = None
 
         self.build_ui()
 
     # ================= UI BUILDER =================
     def build_ui(self):
-        notebook = ttk.Notebook(self.root)
-        notebook.pack(fill="both", expand=True, padx=10, pady=10)
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(fill="both", expand=True, padx=10, pady=10)
         
-        # ================= TAB 1: ASSIGN COORDINATES =================
-        tab_coord = ttk.Frame(notebook)
-        notebook.add(tab_coord, text="1. Assign Coordinates")
+        # ================= TAB 1 =================
+        tab_coord = ttk.Frame(self.notebook)
+        self.notebook.add(tab_coord, text="1. Assign Coordinates")
         
         ctrl_frame = ttk.LabelFrame(tab_coord, text="Display Settings")
         ctrl_frame.pack(fill="x", padx=5, pady=5)
@@ -127,18 +134,36 @@ class DynamicGroupBot:
         cbo_chars.pack(side="left", padx=5)
         cbo_chars.bind("<<ComboboxSelected>>", self.render_coord_ui)
         
-        canvas = tk.Canvas(tab_coord)
-        scrollbar = ttk.Scrollbar(tab_coord, orient="vertical", command=canvas.yview)
-        self.scroll_frame = ttk.Frame(canvas)
-        self.scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=self.scroll_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        self.coord_notebook = ttk.Notebook(tab_coord)
+        self.coord_notebook.pack(fill="both", expand=True, padx=5, pady=5)
+
+        tab_main_coords = ttk.Frame(self.coord_notebook)
+        self.coord_notebook.add(tab_main_coords, text="Main Coordinates")
         
-        # ================= TAB 2: SCRIPT EDITOR =================
-        tab_script = ttk.Frame(notebook)
-        notebook.add(tab_script, text="2. Script Editor")
+        canvas_main = tk.Canvas(tab_main_coords)
+        scrollbar_main = ttk.Scrollbar(tab_main_coords, orient="vertical", command=canvas_main.yview)
+        self.scroll_frame_main = ttk.Frame(canvas_main)
+        self.scroll_frame_main.bind("<Configure>", lambda e: canvas_main.configure(scrollregion=canvas_main.bbox("all")))
+        canvas_main.create_window((0, 0), window=self.scroll_frame_main, anchor="nw")
+        canvas_main.configure(yscrollcommand=scrollbar_main.set)
+        canvas_main.pack(side="left", fill="both", expand=True)
+        scrollbar_main.pack(side="right", fill="y")
+
+        tab_rescue_coords = ttk.Frame(self.coord_notebook)
+        self.coord_notebook.add(tab_rescue_coords, text="Rescue Protocol")
+
+        canvas_rescue = tk.Canvas(tab_rescue_coords)
+        scrollbar_rescue = ttk.Scrollbar(tab_rescue_coords, orient="vertical", command=canvas_rescue.yview)
+        self.scroll_frame_rescue = ttk.Frame(canvas_rescue)
+        self.scroll_frame_rescue.bind("<Configure>", lambda e: canvas_rescue.configure(scrollregion=canvas_rescue.bbox("all")))
+        canvas_rescue.create_window((0, 0), window=self.scroll_frame_rescue, anchor="nw")
+        canvas_rescue.configure(yscrollcommand=scrollbar_rescue.set)
+        canvas_rescue.pack(side="left", fill="both", expand=True)
+        scrollbar_rescue.pack(side="right", fill="y")
+        
+        # ================= TAB 2 =================
+        tab_script = ttk.Frame(self.notebook)
+        self.notebook.add(tab_script, text="2. Script Editor")
         
         frame_input = ttk.LabelFrame(tab_script, text="Action Toolset")
         frame_input.pack(fill="x", padx=5, pady=5, ipady=5)
@@ -166,9 +191,17 @@ class DynamicGroupBot:
         ttk.Button(frame_btns, text="📥 Insert Above", width=20, command=self.insert_action).pack(side="left", padx=5)
         ttk.Button(frame_btns, text="📝 Update Selected", width=25, command=self.update_action).pack(side="left", padx=5)
         
+        self.frame_jump_container = ttk.Frame(tab_script)
+        self.frame_jump_container.pack(fill="x", padx=5, pady=(5,0))
+        self.btn_jump = tk.Button(self.frame_jump_container, text="🚀 CLICK HERE TO JUMP TO SELECTED STEP", 
+                                  bg="#ff9800", fg="white", font=("Arial", 12, "bold"), cursor="hand2", command=self.jump_to_step)
+        self.btn_jump.pack_forget()
+        
         self.listbox = tk.Listbox(tab_script, height=12, font=("Consolas", 11), selectmode=tk.EXTENDED, exportselection=False)
         self.listbox.pack(fill="both", expand=True, padx=5, pady=5)
+        
         self.listbox.bind('<ButtonRelease-1>', self.load_selected_to_inputs)
+        self.listbox.bind('<Double-Button-1>', self.jump_to_step)
         
         frame_edit = ttk.Frame(tab_script)
         frame_edit.pack(fill="x", pady=5)
@@ -177,9 +210,8 @@ class DynamicGroupBot:
         ttk.Button(frame_edit, text="📋 Copy", command=self.copy_action).pack(side="left", padx=10)
         ttk.Button(frame_edit, text="📋 Paste", command=self.paste_action).pack(side="left", padx=2)
         ttk.Button(frame_edit, text="❌ Delete", command=self.delete_action).pack(side="left", padx=20)
-        ttk.Button(frame_edit, text="🧹 Clear All", command=lambda: self.listbox.delete(0, tk.END)).pack(side="right", padx=5)
-
-        # --- Structured Search & Replace ---
+        ttk.Button(frame_edit, text="🧹 Clear All", command=lambda: self.listbox.delete(0, tk.END)).pack(side="left", padx=5)
+        
         frame_sr = ttk.LabelFrame(tab_script, text="Search & Replace")
         frame_sr.pack(fill="x", padx=5, pady=5)
         
@@ -209,9 +241,9 @@ class DynamicGroupBot:
         ttk.Button(frame_sr_btns, text="🔄 Replace All", width=15, command=self.replace_all).pack(side="left", padx=10)
         ttk.Button(frame_sr_btns, text="🧹 Clear Search", width=15, command=self.clear_search).pack(side="left", padx=10)
 
-        # ================= TAB 3: AUTO RUNNER =================
-        tab_run = ttk.Frame(notebook)
-        notebook.add(tab_run, text="3. Auto Runner")
+        # ================= TAB 3 =================
+        tab_run = ttk.Frame(self.notebook)
+        self.notebook.add(tab_run, text="3. Auto Runner")
         
         frame_settings = ttk.LabelFrame(tab_run, text="Farming Settings")
         frame_settings.pack(fill="x", padx=10, pady=5)
@@ -239,53 +271,80 @@ class DynamicGroupBot:
         ttk.Radiobutton(frame_settings, text="Run Infinitely", variable=self.run_mode, value="infinite", command=self.update_run_mode).grid(row=2, column=0, columnspan=2, sticky="w", padx=5, pady=5)
         self.update_run_mode()
 
-        # --- ADVANCED OPTIONS ---
         frame_adv = ttk.Frame(frame_settings)
         frame_adv.grid(row=3, column=0, columnspan=2, sticky="w", padx=5, pady=5)
         self.var_disable_skill_agi = tk.BooleanVar(value=False)
         ttk.Checkbutton(frame_adv, text="Disable skills if 'Agi Up' sticker is obtained", variable=self.var_disable_skill_agi).pack(side="left", padx=5)
 
-        # --- WAVE CHECK OPTION ---
         frame_wave = ttk.Frame(frame_settings)
         frame_wave.grid(row=4, column=0, columnspan=2, sticky="w", padx=5, pady=5)
-        self.var_enable_wave_check = tk.BooleanVar(value=True) 
-        ttk.Checkbutton(frame_wave, text="Enable Wave Check Fallback", variable=self.var_enable_wave_check).pack(side="left", padx=5)
+        self.var_enable_fallback = tk.BooleanVar(value=True) 
+        ttk.Checkbutton(frame_wave, text="Enable Battle Fallback", variable=self.var_enable_fallback).pack(side="left", padx=5)
         ttk.Label(frame_wave, text="Action:").pack(side="left")
         self.cbo_fallback_action = ttk.Combobox(frame_wave, values=["Focus Shot", "Spread Shot"], state="readonly", width=12)
         self.cbo_fallback_action.current(0)
         self.cbo_fallback_action.pack(side="left", padx=5)
         
-        # --- AGI UP ONCE OPTION ---
         frame_agi_once = ttk.Frame(frame_settings)
         frame_agi_once.grid(row=5, column=0, columnspan=2, sticky="w", padx=5, pady=5)
         self.var_pick_agi_once = tk.BooleanVar(value=True) 
         ttk.Checkbutton(frame_agi_once, text="Only pick 'Agi Up' sticker once per run", variable=self.var_pick_agi_once).pack(side="left", padx=5)
+
+        frame_rescue_opt = ttk.Frame(frame_settings)
+        frame_rescue_opt.grid(row=6, column=0, columnspan=2, sticky="w", padx=5, pady=5)
+        self.var_enable_rescue = tk.BooleanVar(value=False) # MẶC ĐỊNH TẮT
+        self.chk_rescue = ttk.Checkbutton(frame_rescue_opt, text="Enable Auto Rescue (Restart Emulator if frozen for 1 min)", variable=self.var_enable_rescue, command=self.toggle_rescue_sub)
+        self.chk_rescue.pack(anchor="w", padx=5)
+        
+        self.frame_rescue_sub = ttk.Frame(frame_settings)
+        self.frame_rescue_sub.grid(row=7, column=0, columnspan=2, sticky="w", padx=30, pady=0)
+        self.var_rescue_smart = tk.BooleanVar(value=False) # MẶC ĐỊNH TẮT
+        self.chk_rescue_smart = ttk.Checkbutton(self.frame_rescue_sub, text="Smart Area Jump (Check Buff Screen to advance Area)", variable=self.var_rescue_smart)
+        self.chk_rescue_smart.pack(side="left")
+        ttk.Label(self.frame_rescue_sub, text="⚠️ Warning: May fail because I didn't test it properly.", foreground="red", font=("Arial", 9)).pack(side="left", padx=5)
         
         self.lbl_status = ttk.Label(tab_run, text="Status: STOPPED", foreground="red", font=("Arial", 14, "bold"))
         self.lbl_status.pack(pady=5)
         self.lbl_info = ttk.Label(tab_run, text="Ready", font=("Arial", 11))
         self.lbl_info.pack(pady=2)
 
-        # === HOTKEY SETTINGS ===
-        frame_hotkey = ttk.LabelFrame(tab_run, text="Hotkey Settings")
+        frame_run_btns = ttk.Frame(tab_run)
+        frame_run_btns.pack(fill="x", padx=30, pady=10)
+        ttk.Button(frame_run_btns, text="▶ START", command=self.start_bot).pack(side="left", expand=True, padx=5, ipady=10)
+        ttk.Button(frame_run_btns, text="⏸ PAUSE", command=self.toggle_pause).pack(side="left", expand=True, padx=5, ipady=10)
+        ttk.Button(frame_run_btns, text="⏹ STOP", command=self.force_stop).pack(side="left", expand=True, padx=5, ipady=10)
+
+        frame_hotkey = ttk.LabelFrame(tab_run, text="Hotkey Settings (Run in Background)")
         frame_hotkey.pack(fill="x", padx=10, pady=5)
         
-        # Row 1: Start/Stop
         frame_hk_start = ttk.Frame(frame_hotkey)
         frame_hk_start.pack(fill="x", padx=5, pady=2)
-        ttk.Label(frame_hk_start, text="Start/Stop:", width=15).pack(side="left")
-        self.cbo_modifier = ttk.Combobox(frame_hk_start, values=["None", "ctrl", "alt", "shift"], state="readonly", width=6)
-        self.cbo_modifier.current(0)
-        self.cbo_modifier.pack(side="left", padx=2)
-        self.cbo_modifier.bind("<<ComboboxSelected>>", self.update_hotkeys)
-        self.cbo_key = ttk.Combobox(frame_hk_start, values=["f6", "f7", "f8", "f9", "f10", "f11", "f12"], state="readonly", width=6)
-        self.cbo_key.current(0) # F6
-        self.cbo_key.pack(side="left", padx=2)
-        self.cbo_key.bind("<<ComboboxSelected>>", self.update_hotkeys)
-        self.lbl_hk1 = ttk.Label(frame_hk_start, text="[F6]", foreground="blue", font=("Arial", 9, "bold"))
+        ttk.Label(frame_hk_start, text="Start (Run):", width=15).pack(side="left")
+        self.cbo_start_modifier = ttk.Combobox(frame_hk_start, values=["None", "ctrl", "alt", "shift"], state="readonly", width=6)
+        self.cbo_start_modifier.current(0)
+        self.cbo_start_modifier.pack(side="left", padx=2)
+        self.cbo_start_modifier.bind("<<ComboboxSelected>>", self.update_hotkeys)
+        self.cbo_start_key = ttk.Combobox(frame_hk_start, values=["f6", "f7", "f8", "f9", "f10", "f11", "f12"], state="readonly", width=6)
+        self.cbo_start_key.current(0) 
+        self.cbo_start_key.pack(side="left", padx=2)
+        self.cbo_start_key.bind("<<ComboboxSelected>>", self.update_hotkeys)
+        self.lbl_hk1 = ttk.Label(frame_hk_start, text="[F6]", foreground="green", font=("Arial", 9, "bold"))
         self.lbl_hk1.pack(side="left", padx=5)
 
-        # Row 2: PAUSE / RESUME 
+        frame_hk_stop = ttk.Frame(frame_hotkey)
+        frame_hk_stop.pack(fill="x", padx=5, pady=2)
+        ttk.Label(frame_hk_stop, text="Stop:", width=15).pack(side="left")
+        self.cbo_stop_modifier = ttk.Combobox(frame_hk_stop, values=["None", "ctrl", "alt", "shift"], state="readonly", width=6)
+        self.cbo_stop_modifier.current(0)
+        self.cbo_stop_modifier.pack(side="left", padx=2)
+        self.cbo_stop_modifier.bind("<<ComboboxSelected>>", self.update_hotkeys)
+        self.cbo_stop_key = ttk.Combobox(frame_hk_stop, values=["f6", "f7", "f8", "f9", "f10", "f11", "f12"], state="readonly", width=6)
+        self.cbo_stop_key.current(1) 
+        self.cbo_stop_key.pack(side="left", padx=2)
+        self.cbo_stop_key.bind("<<ComboboxSelected>>", self.update_hotkeys)
+        self.lbl_hk2 = ttk.Label(frame_hk_stop, text="[F7]", foreground="red", font=("Arial", 9, "bold"))
+        self.lbl_hk2.pack(side="left", padx=5)
+
         frame_hk_pause = ttk.Frame(frame_hotkey)
         frame_hk_pause.pack(fill="x", padx=5, pady=2)
         ttk.Label(frame_hk_pause, text="Pause/Resume:", width=15).pack(side="left")
@@ -294,44 +353,12 @@ class DynamicGroupBot:
         self.cbo_pause_modifier.pack(side="left", padx=2)
         self.cbo_pause_modifier.bind("<<ComboboxSelected>>", self.update_hotkeys)
         self.cbo_pause_key = ttk.Combobox(frame_hk_pause, values=["f6", "f7", "f8", "f9", "f10", "f11", "f12"], state="readonly", width=6)
-        self.cbo_pause_key.current(1) # F7
+        self.cbo_pause_key.current(2) 
         self.cbo_pause_key.pack(side="left", padx=2)
         self.cbo_pause_key.bind("<<ComboboxSelected>>", self.update_hotkeys)
-        self.lbl_hk2 = ttk.Label(frame_hk_pause, text="[F7]", foreground="orange", font=("Arial", 9, "bold"))
-        self.lbl_hk2.pack(side="left", padx=5)
-
-        # Row 3: Skip State / Next
-        frame_hk_skip = ttk.Frame(frame_hotkey)
-        frame_hk_skip.pack(fill="x", padx=5, pady=2)
-        ttk.Label(frame_hk_skip, text="Skip State (Next):", width=15).pack(side="left")
-        self.cbo_skip_modifier = ttk.Combobox(frame_hk_skip, values=["None", "ctrl", "alt", "shift"], state="readonly", width=6)
-        self.cbo_skip_modifier.current(0)
-        self.cbo_skip_modifier.pack(side="left", padx=2)
-        self.cbo_skip_modifier.bind("<<ComboboxSelected>>", self.update_hotkeys)
-        self.cbo_skip_key = ttk.Combobox(frame_hk_skip, values=["f6", "f7", "f8", "f9", "f10", "f11", "f12"], state="readonly", width=6)
-        self.cbo_skip_key.current(2) # F8
-        self.cbo_skip_key.pack(side="left", padx=2)
-        self.cbo_skip_key.bind("<<ComboboxSelected>>", self.update_hotkeys)
-        self.lbl_hk3 = ttk.Label(frame_hk_skip, text="[F8]", foreground="green", font=("Arial", 9, "bold"))
+        self.lbl_hk3 = ttk.Label(frame_hk_pause, text="[F8]", foreground="orange", font=("Arial", 9, "bold"))
         self.lbl_hk3.pack(side="left", padx=5)
 
-        # Row 4: Prev State
-        frame_hk_prev = ttk.Frame(frame_hotkey)
-        frame_hk_prev.pack(fill="x", padx=5, pady=2)
-        ttk.Label(frame_hk_prev, text="Prev State:", width=15).pack(side="left")
-        self.cbo_prev_modifier = ttk.Combobox(frame_hk_prev, values=["None", "ctrl", "alt", "shift"], state="readonly", width=6)
-        self.cbo_prev_modifier.current(0)
-        self.cbo_prev_modifier.pack(side="left", padx=2)
-        self.cbo_prev_modifier.bind("<<ComboboxSelected>>", self.update_hotkeys)
-        self.cbo_prev_key = ttk.Combobox(frame_hk_prev, values=["f6", "f7", "f8", "f9", "f10", "f11", "f12"], state="readonly", width=6)
-        self.cbo_prev_key.current(3) # F9
-        self.cbo_prev_key.pack(side="left", padx=2)
-        self.cbo_prev_key.bind("<<ComboboxSelected>>", self.update_hotkeys)
-        self.lbl_hk4 = ttk.Label(frame_hk_prev, text="[F9]", foreground="purple", font=("Arial", 9, "bold"))
-        self.lbl_hk4.pack(side="left", padx=5)
-
-        ttk.Button(tab_run, text="▶ START / ⏹ STOP", command=self.toggle_bot).pack(ipady=15, fill="x", padx=50, pady=10)
-        
         frame_file = ttk.Frame(tab_run)
         frame_file.pack(pady=10)
         ttk.Button(frame_file, text="💾 Save Profile", command=self.save_profile).pack(side="left", expand=True, padx=5)
@@ -340,57 +367,67 @@ class DynamicGroupBot:
         self.render_coord_ui()
         self.update_action_combobox(None) 
         self.update_hotkeys()
+        self.toggle_rescue_sub()
         self.root.after(100, self.check_hotkeys_loop)
 
     # ================= UI LOGIC =================
+    
+    def toggle_rescue_sub(self):
+        if self.var_enable_rescue.get():
+            self.chk_rescue_smart.config(state="normal")
+        else:
+            self.chk_rescue_smart.config(state="disabled")
+            
+    def jump_to_step(self, event=None):
+        if self.is_running:
+            selected = self.listbox.curselection()
+            if selected:
+                self.current_step_idx = selected[0]
+                self.jump_flag = True
+                self.reset_run_flag = False
+                self.jump_area_flag = -1
+                
+                if self.is_paused:
+                    self.toggle_pause()
+                    
+                print(f"[!] User Jumped to state: {self.current_step_idx}")
+                self.update_info_label(f"Jumped to Step {self.current_step_idx}")
+                self.update_listbox_selection(self.current_step_idx)
+    
     def update_hotkeys(self, event=None):
-        mod = self.cbo_modifier.get()
-        key = self.cbo_key.get()
-        self.current_hotkey = key if mod == "None" else f"{mod}+{key}"
-        self.lbl_hk1.config(text=f"[{self.current_hotkey.upper()}]")
+        mod = self.cbo_start_modifier.get()
+        key = self.cbo_start_key.get()
+        self.current_start_hotkey = key if mod == "None" else f"{mod}+{key}"
+        self.lbl_hk1.config(text=f"[{self.current_start_hotkey.upper()}]")
         
+        mod = self.cbo_stop_modifier.get()
+        key = self.cbo_stop_key.get()
+        self.current_stop_hotkey = key if mod == "None" else f"{mod}+{key}"
+        self.lbl_hk2.config(text=f"[{self.current_stop_hotkey.upper()}]")
+
         mod = self.cbo_pause_modifier.get()
         key = self.cbo_pause_key.get()
         self.current_pause_hotkey = key if mod == "None" else f"{mod}+{key}"
-        self.lbl_hk2.config(text=f"[{self.current_pause_hotkey.upper()}]")
-
-        mod = self.cbo_skip_modifier.get()
-        key = self.cbo_skip_key.get()
-        self.current_skip_hotkey = key if mod == "None" else f"{mod}+{key}"
-        self.lbl_hk3.config(text=f"[{self.current_skip_hotkey.upper()}]")
-
-        mod = self.cbo_prev_modifier.get()
-        key = self.cbo_prev_key.get()
-        self.current_prev_hotkey = key if mod == "None" else f"{mod}+{key}"
-        self.lbl_hk4.config(text=f"[{self.current_prev_hotkey.upper()}]")
+        self.lbl_hk3.config(text=f"[{self.current_pause_hotkey.upper()}]")
 
     def check_hotkeys_loop(self):
         try:
             now = time.time()
-            if self.current_hotkey and keyboard.is_pressed(self.current_hotkey):
-                if now - getattr(self, 'last_toggle_time', 0) > 0.5:
-                    self.last_toggle_time = now
-                    self.toggle_bot()
+            if self.current_start_hotkey and keyboard.is_pressed(self.current_start_hotkey):
+                if now - getattr(self, 'last_start_time', 0) > 0.5:
+                    self.last_start_time = now
+                    self.root.after(0, self.start_bot)
+
+            if self.current_stop_hotkey and keyboard.is_pressed(self.current_stop_hotkey):
+                if now - getattr(self, 'last_stop_time', 0) > 0.5:
+                    self.last_stop_time = now
+                    self.root.after(0, self.force_stop)
                     
             if self.current_pause_hotkey and keyboard.is_pressed(self.current_pause_hotkey):
                 if now - getattr(self, 'last_pause_time', 0) > 0.5:
                     self.last_pause_time = now
-                    self.toggle_pause()
+                    self.root.after(0, self.toggle_pause)
 
-            if self.current_skip_hotkey and keyboard.is_pressed(self.current_skip_hotkey):
-                if now - getattr(self, 'last_skip_time', 0) > 0.5:
-                    self.last_skip_time = now
-                    if self.is_running and not self.is_paused:
-                        self.current_step_idx += 1
-                        print(f"[!] Skipped to state: {self.current_step_idx}")
-
-            if self.current_prev_hotkey and keyboard.is_pressed(self.current_prev_hotkey):
-                if now - getattr(self, 'last_prev_time', 0) > 0.5:
-                    self.last_prev_time = now
-                    if self.is_running and not self.is_paused and self.current_step_idx > 0:
-                        self.current_step_idx -= 1
-                        print(f"[!] Reverted to state: {self.current_step_idx}")
-                        
         except Exception:
             pass 
         finally:
@@ -398,9 +435,17 @@ class DynamicGroupBot:
             
     def update_listbox_selection(self, idx):
         try:
-            self.listbox.selection_clear(0, tk.END)
-            self.listbox.selection_set(idx)
-            self.listbox.see(idx)
+            if self.last_highlighted_idx != -1 and self.last_highlighted_idx < self.listbox.size():
+                text = self.listbox.get(self.last_highlighted_idx)
+                if "[START_AREA]" in text: self.listbox.itemconfig(self.last_highlighted_idx, bg="#d9f7be", fg="black") 
+                elif "[END_AREA]" in text: self.listbox.itemconfig(self.last_highlighted_idx, bg="#ffd6e7", fg="black") 
+                elif "[SEPARATOR]" in text: self.listbox.itemconfig(self.last_highlighted_idx, bg="#f0f0f0", fg="#888888") 
+                else: self.listbox.itemconfig(self.last_highlighted_idx, bg="white", fg="black") 
+            
+            if idx < self.listbox.size():
+                self.listbox.itemconfig(idx, bg="#87ceeb", fg="black")
+                self.listbox.see(idx)
+                self.last_highlighted_idx = idx
         except: pass
 
     def update_sr_dropdowns(self):
@@ -503,8 +548,11 @@ class DynamicGroupBot:
             self.entry_m.config(state="disabled")
 
     def render_coord_ui(self, *args):
-        for widget in self.scroll_frame.winfo_children(): widget.destroy()
+        for widget in self.scroll_frame_main.winfo_children(): widget.destroy()
+        for widget in self.scroll_frame_rescue.winfo_children(): widget.destroy()
+        
         self.lbl_coords = {}
+        
         row = 0
         group_frames = [
             ("Core Controls", [k for k in self.common_keys if k not in ["Open Skill", "Close Skill"]]),
@@ -513,11 +561,13 @@ class DynamicGroupBot:
         ]
         self.displayed_keys = []
         for g_name, g_keys in group_frames:
-            self.create_group_frame(g_name, g_keys, row)
+            self.create_group_frame(self.scroll_frame_main, g_name, g_keys, row)
             row += 1
             self.displayed_keys.extend(g_keys)
-        ttk.Label(self.scroll_frame, text="="*60, foreground="gray").grid(row=row, column=0, columnspan=2, pady=10)
+            
+        ttk.Label(self.scroll_frame_main, text="="*60, foreground="gray").grid(row=row, column=0, columnspan=2, pady=10)
         row += 1
+        
         chars = self.num_chars_var.get()
         for i in range(1, chars + 1):
             char_keys = [
@@ -526,7 +576,7 @@ class DynamicGroupBot:
             ]
             c_name = self.char_notes.get(str(i), "").strip()
             title = f"Character {i}" + (f" ({c_name})" if c_name else "")
-            frame = ttk.LabelFrame(self.scroll_frame, text=title)
+            frame = ttk.LabelFrame(self.scroll_frame_main, text=title)
             frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=10, pady=10) 
             note_frame = ttk.Frame(frame)
             note_frame.grid(row=0, column=0, columnspan=6, sticky="w", padx=5, pady=5)
@@ -536,10 +586,15 @@ class DynamicGroupBot:
             self.render_keys_in_frame(frame, char_keys, start_row=1)
             self.displayed_keys.extend(char_keys)
             row += 1
+            
+        self.create_group_frame(self.scroll_frame_rescue, "Rescue Protocol Controls", self.rescue_keys, 0)
+        ttk.Label(self.scroll_frame_rescue, text="Note: Search operations for 'Main Stage', 'Challenge',\nand 'Party Back' use coordinates from the table above.", foreground="gray").grid(row=1, column=0, columnspan=3, pady=10, padx=10)
+        self.displayed_keys.extend(self.rescue_keys)
+
         self.update_target_combobox(None)
 
-    def create_group_frame(self, group_name, keys, main_row):
-        frame = ttk.LabelFrame(self.scroll_frame, text=group_name)
+    def create_group_frame(self, parent_frame, group_name, keys, main_row):
+        frame = ttk.LabelFrame(parent_frame, text=group_name)
         frame.grid(row=main_row, column=0, columnspan=2, sticky="ew", padx=10, pady=5) 
         self.render_keys_in_frame(frame, keys)
 
@@ -677,6 +732,8 @@ class DynamicGroupBot:
                         if was_selected: self.listbox.selection_set(i)
                     count += 1
         self.apply_listbox_colors()
+        if self.last_highlighted_idx != -1 and self.last_highlighted_idx < self.listbox.size():
+            self.listbox.itemconfig(self.last_highlighted_idx, bg="#87ceeb", fg="black")
 
     def add_action(self):
         action = self.cbo_action.get()
@@ -789,11 +846,26 @@ class DynamicGroupBot:
             for i in range(1, 4):
                 if str(i) in self.char_note_vars:
                     self.char_notes[str(i)] = self.char_note_vars[str(i)].get()
+                    
+            options_data = {
+                "run_mode": self.run_mode.get(),
+                "loop_var": self.loop_var.get(),
+                "hour_var": self.hour_var.get(),
+                "min_var": self.min_var.get(),
+                "disable_skill_agi": self.var_disable_skill_agi.get(),
+                "enable_fallback": self.var_enable_fallback.get(),
+                "fallback_action": self.cbo_fallback_action.get(),
+                "pick_agi_once": self.var_pick_agi_once.get(),
+                "enable_rescue": self.var_enable_rescue.get(),
+                "rescue_smart": self.var_rescue_smart.get()
+            }
+                    
             with open(path, 'w', encoding='utf-8') as f: 
                 json.dump({
                     "coords": self.coords, 
                     "script": script_data,
-                    "char_notes": self.char_notes
+                    "char_notes": self.char_notes,
+                    "options": options_data
                 }, f, indent=4, ensure_ascii=False)
             messagebox.showinfo("Success", "Profile saved successfully!")
 
@@ -813,6 +885,23 @@ class DynamicGroupBot:
                 for i in range(1, 4):
                     if str(i) in self.char_note_vars: self.char_note_vars[str(i)].set(self.char_notes.get(str(i), ""))
                 script_data = data.get("script", [])
+                
+                options_data = data.get("options", None)
+                if options_data:
+                    self.run_mode.set(options_data.get("run_mode", "loop"))
+                    self.loop_var.set(options_data.get("loop_var", 1))
+                    self.hour_var.set(options_data.get("hour_var", 0))
+                    self.min_var.set(options_data.get("min_var", 30))
+                    self.var_disable_skill_agi.set(options_data.get("disable_skill_agi", False))
+                    self.var_enable_fallback.set(options_data.get("enable_fallback", True))
+                    self.cbo_fallback_action.set(options_data.get("fallback_action", "Focus Shot"))
+                    self.var_pick_agi_once.set(options_data.get("pick_agi_once", True))
+                    self.var_enable_rescue.set(options_data.get("enable_rescue", False))
+                    self.var_rescue_smart.set(options_data.get("rescue_smart", False))
+                    
+                    self.update_run_mode()
+                    self.toggle_rescue_sub()
+                
             self.render_coord_ui() 
             self.listbox.delete(0, tk.END)
             for act in script_data:
@@ -824,15 +913,147 @@ class DynamicGroupBot:
     # ================= AUTO RUN ENGINE =================
     
     def check_pause(self):
-        """Hàm dùng để chặn code lại nếu người dùng ấn Pause"""
-        while self.is_paused and self.is_running:
-            time.sleep(0.5)
+        pause_duration = 0
+        if self.is_paused and self.is_running:
+            start_p = time.time()
+            while self.is_paused and self.is_running:
+                if getattr(self, 'jump_flag', False): break
+                time.sleep(0.5)
+            pause_duration = time.time() - start_p
+        return pause_duration
 
-    def toggle_bot(self):
-        self.is_running = not self.is_running
-        if self.is_running:
+    def wait_with_jump(self, seconds):
+        start = time.time()
+        while time.time() - start < seconds:
+            p_time = self.check_pause()
+            if p_time > 0: start += p_time
+            
+            if not self.is_running or getattr(self, 'jump_flag', False):
+                return False
+            time.sleep(0.1)
+        return True
+
+    def find_first_action_in_area(self, start_area_idx, target_action):
+        for i in range(start_area_idx, len(self.main_script)):
+            act = self.main_script[i]["action"]
+            if act == target_action:
+                return i
+            if act == "START_AREA" and i != start_area_idx:
+                break
+        return -1
+        
+    def find_area_start_index(self, target_area):
+        for i, act in enumerate(self.main_script):
+            if act["action"] == "START_AREA" and str(act["target"]) == str(target_area):
+                return i
+        return -1
+
+    def rescue_frozen_emulator(self):
+        print("[!!!] ALERT: Frozen Emulator detected! Starting Rescue Protocol...")
+        self.update_info_label("EMULATOR FROZEN! Full Restarting...")
+        
+        self.click_coord("Close Emulator", delay=1.5)
+        self.click_coord("Confirm Close Emu", delay=5.0)
+        
+        print("[*] Minimizing all apps (Show Desktop)...")
+        pyautogui.hotkey('win', 'd')
+        time.sleep(1.0)
+        
+        coord = self.coords.get("Game Desktop Icon")
+        if coord and coord["x"] > 0:
+            pyautogui.moveTo(x=coord["x"], y=coord["y"], duration=0.15)
+            time.sleep(0.1)
+            pyautogui.doubleClick()
+            self.wait_with_jump(10.0) 
+        else:
+            print("[-] Game Desktop Icon coordinates not set!")
+            
+        print("[*] Maximizing Full Screen and waiting 60s...")
+        self.click_coord("Full Screen", delay=60.0)
+            
+        print("[*] Clicking to bypass Title Screen...")
+        for _ in range(2):
+            if not self.is_running or getattr(self, 'jump_flag', False): return
+            self.click_coord("Center Screen", delay=1.0)
+        self.wait_with_jump(30.0) 
+            
+        print("[*] Entering Game Mode...")
+        self.click_coord("Enter Game Mode", delay=3.0)
+        print("[*] Selecting Main Stage...")
+        self.click_coord("Main Stage", delay=2.0)
+        print("[*] Selecting Challenge...")
+        self.click_coord("Challenge", delay=4.0)
+
+        # ========================================================
+        # LOGIC SMART JUMP (CÓ CHECK BUFF)
+        # ========================================================
+        if not self.var_rescue_smart.get():
+            print("[*] Basic Mode: Giving Up and Resetting from Area 1.")
+            self.click_coord("Party Back", delay=2.0)
+            self.click_coord("Give Up Run", delay=2.0)
+            self.click_auto_confirm(max_wait=4, target_img="btn_confirm.png")
+            self.wait_with_jump(4.0)
+            self.reset_run_flag = True 
+            print("[+] Rescue complete. Starting a new Run from Area 1...")
+            return
+
+        print("[*] Checking if stuck on Buff Screen...")
+        is_buff = False
+        for _ in range(2):
+            if not self.is_running or getattr(self, 'jump_flag', False): return
+            if self.vision.check_state() == "BUFF_SELECT":
+                is_buff = True
+                break
+            self.wait_with_jump(1.0)
+            
+        if is_buff:
+            if getattr(self, 'has_entered_battle', False):
+                print("[!] Buff Screen detected (Post-Battle). Jumping to Next Area...")
+                self.update_info_label("Buff Screen detected. Jumping to Next Area...")
+                next_area = self.current_area + 1
+                jump_idx = self.find_area_start_index(next_area)
+                if jump_idx != -1:
+                    self.jump_area_flag = jump_idx
+                else:
+                    self.reset_run_flag = True
+            else:
+                print("[!] Buff Screen detected (Pre-Battle). Restarting current Area...")
+                self.update_info_label("Buff Screen detected. Restarting current Area...")
+                curr_idx = self.find_area_start_index(self.current_area)
+                if curr_idx != -1:
+                    self.jump_area_flag = curr_idx
+                else:
+                    self.reset_run_flag = True
+        else:
+            print("[!] No Buff Screen. Giving Up and retrying current Area...")
+            self.update_info_label("No Buff Screen. Retrying current Area...")
+            self.click_coord("Party Back", delay=2.0)
+            self.click_coord("Give Up Run", delay=2.0)
+            self.click_auto_confirm(max_wait=4, target_img="btn_confirm.png")
+            self.wait_with_jump(4.0)
+            
+            for _ in range(2):
+                self.click_coord("Skip Corner", 0.5)
+                
+            curr_idx = self.find_area_start_index(self.current_area)
+            if curr_idx != -1:
+                diff_idx = self.find_first_action_in_area(curr_idx, "CHOOSE_DIFFICULTY")
+                if diff_idx != -1:
+                    print(f"[+] Restarting Area {self.current_area} from Difficulty Selection (Skipping Buffs)...")
+                    self.jump_area_flag = diff_idx
+                else:
+                    print(f"[-] Script Error: Difficulty Selection not found. Jumping to start of Area {self.current_area}.")
+                    self.jump_area_flag = curr_idx
+            else:
+                self.reset_run_flag = True 
+
+    def start_bot(self):
+        if not self.is_running:
+            self.is_running = True
             self.is_paused = False
             self.lbl_status.config(text="Status: RUNNING", foreground="green")
+            self.notebook.select(1) 
+            self.btn_jump.pack(fill="x", expand=True, ipady=5) 
             self.root.iconify()
             self.root.update() 
             
@@ -846,8 +1067,13 @@ class DynamicGroupBot:
                 self.main_script.append({"action": parts[0].replace("[", ""), "target": parts[1] if len(parts)>1 else "None"})
                 
             threading.Thread(target=self.bot_loop, daemon=True).start()
-        else:
+
+    def force_stop(self):
+        if self.is_running:
+            self.is_running = False
+            self.is_paused = False
             self.lbl_status.config(text="Status: STOPPED", foreground="red")
+            self.btn_jump.pack_forget() 
             self.root.deiconify()
             self.root.state('normal')
             self.root.update()
@@ -858,21 +1084,29 @@ class DynamicGroupBot:
             if self.is_paused:
                 self.lbl_status.config(text="Status: PAUSED", foreground="orange")
                 self.update_info_label("Bot is paused. Press Hotkey to resume.")
+                self.notebook.select(1) 
+                self.root.deiconify()   
+                self.root.state('normal')
+                self.root.update()
             else:
                 self.lbl_status.config(text="Status: RUNNING", foreground="green")
                 self.update_info_label("Bot resumed.")
+                self.notebook.select(1) 
+                self.root.iconify()     
+                self.root.update()
 
     def update_info_label(self, msg):
         self.lbl_info.config(text=msg)
 
     def click_coord(self, key_name, delay=0.4):
         self.check_pause()
+        if getattr(self, 'jump_flag', False) or getattr(self, 'jump_area_flag', -1) != -1: return
         coord = self.coords.get(key_name)
         if coord and coord["x"] > 0:
             pyautogui.moveTo(x=coord["x"], y=coord["y"], duration=0.15)
             time.sleep(0.1)
             pyautogui.click(clicks=1)
-            time.sleep(delay)
+            self.wait_with_jump(delay)
         else:
             print(f"[-] Warning: Coordinates for {key_name} not set or found!")
 
@@ -883,28 +1117,39 @@ class DynamicGroupBot:
         pos = self.vision.get_pos("btn_confirm.png")
         if pos: pyautogui.click(x=pos[0], y=pos[1])
         else: pyautogui.click(x=600, y=450)
-        time.sleep(5)
+        self.wait_with_jump(5)
 
     def wait_for_screen(self, target_screen):
         self.update_info_label(f"Waiting for: {target_screen}...")
         start_wait = time.time()
+        timeout_start = time.time()
+        timeout_limit = 60 
         
         while self.is_running:
-            self.check_pause()
+            p_time = self.check_pause()
+            if p_time > 0:
+                start_wait += p_time
+                timeout_start += p_time
+                
+            if getattr(self, 'jump_flag', False) or getattr(self, 'jump_area_flag', -1) != -1: return
+
+            if self.var_enable_rescue.get() and (time.time() - timeout_start > timeout_limit):
+                self.rescue_frozen_emulator()
+                return
 
             if self.vision.get_pos("btn_confirm.png"): 
                 self.handle_disconnect()
+                start_wait = time.time()
                 continue
                 
             if target_screen == "SELECT_PARTY_SCREEN":
                 pos = self.vision.get_pos("btn_cancel.png")
                 if pos:
                     print("[+] Party Selection screen detected!")
-                    time.sleep(0.5)
+                    self.wait_with_jump(0.5)
                     return
             
             elif target_screen == "END_BATTLE_SCREEN":
-                # --- CHECK GAME OVER ---
                 pos_fail = self.vision.get_pos("btn_game_over.png")
                 if pos_fail:
                     print("[!] GAME OVER DETECTED! Resetting Run...")
@@ -918,130 +1163,51 @@ class DynamicGroupBot:
                 if pos:
                     print("[+] Battle End screen detected!")
                     pyautogui.click(x=pos[0], y=pos[1])
-                    time.sleep(1.0)
+                    self.wait_with_jump(1.0)
                     for _ in range(3): self.click_coord("Skip Corner", 1.0)
-                    self.last_seen_wave = None
                     return
                 
-                # --- CHECK STUCK IN WAVE 3 ---
-                if self.var_enable_wave_check.get() and self.vision.check_state() == "IN_BATTLE":
-                    is_stuck = False
-                    
-                    coord = self.coords.get("Wave Text")
-                    if coord and coord["x"] > 0:
-                        region = (int(coord["x"] - 100), int(coord["y"] - 50), 200, 100)
-                        img_path = os.path.join(IMAGE_DIR, "wave3.png")
-                        if os.path.exists(img_path):
-                            try:
-                                if pyautogui.locateOnScreen(img_path, region=region, confidence=0.85):
-                                    is_stuck = True
-                            except: pass
-                            
-                    # Nếu chưa thấy ảnh wave3, nhưng đã chờ hơn 8s, vẫn tính là kẹt
-                    if not is_stuck and (time.time() - start_wait > 8):
-                        is_stuck = True
-
-                    if is_stuck:
-                        print("[!] Stuck in Wave 3! Executing Fallback...")
-                        self.update_info_label("Stuck in Wave 3! Using Fallback...")
+                # --- FALLBACK KHI KẸT LẠI TRONG TRẬN VÌ ĐÁNH HỤT ---
+                if self.var_enable_fallback.get() and self.vision.check_state() == "IN_BATTLE":
+                    if time.time() - start_wait > 8:
+                        print("[!] Kẹt lại trong trận (Boss chưa chết)! Kích hoạt bắn dự phòng...")
+                        self.update_info_label("Stuck in Battle! Using Fallback...")
                         action = self.cbo_fallback_action.get()
                         for _ in range(3): 
                             self.click_coord(action, 0.5)
                             
-                        # Chờ UI ẩn đi do xuất chiêu
-                        time.sleep(2)
+                        self.wait_with_jump(2)
                         wait_hide = time.time()
                         while self.is_running and (time.time() - wait_hide < 5):
+                            if getattr(self, 'jump_flag', False) or getattr(self, 'jump_area_flag', -1) != -1: return
+                            p_time_hide = self.check_pause()
+                            if p_time_hide > 0: wait_hide += p_time_hide
                             if self.vision.check_state() != "IN_BATTLE": break
                             time.sleep(0.5)
                             
-                        start_wait = time.time() # Reset clock
+                        start_wait = time.time() 
 
             else:
                 state_map = {"BATTLE_SCREEN": "IN_BATTLE", "BUFF_SCREEN": "BUFF_SELECT", "PREPARE_SCREEN": "PREPARE"}
                 mapped_target = state_map.get(target_screen, "UNKNOWN")
                 if self.vision.check_state() == mapped_target: 
-                    time.sleep(0.5)
+                    self.wait_with_jump(0.5)
                     return
                 
             time.sleep(1)
-
-    def handle_wave_check(self):
-        """Hàm kiểm tra kẹt Wave (Fall-back) bằng ảnh tĩnh wave1.png, wave2.png, wave3.png"""
-        coord = self.coords.get("Wave Text")
-        region = None
-        if coord and coord["x"] > 0:
-            region = (int(coord["x"] - 100), int(coord["y"] - 50), 200, 100)
-
-        while self.is_running:
-            self.check_pause()
-            
-            # 1. Tìm xem màn hình đang hiện Wave mấy (Thử quét trong 3 giây vì chữ Wave có thể hiện chậm)
-            current_wave = None
-            for _ in range(6):
-                time.sleep(0.5)
-                self.check_pause()
-                for w in [1, 2, 3]:
-                    img_path = os.path.join(IMAGE_DIR, f"wave{w}.png")
-                    if os.path.exists(img_path):
-                        try:
-                            if region:
-                                pos = pyautogui.locateOnScreen(img_path, region=region, confidence=0.85)
-                            else:
-                                pos = pyautogui.locateOnScreen(img_path, confidence=0.85)
-                            if pos:
-                                current_wave = w
-                                break
-                        except Exception: pass
-                if current_wave is not None:
-                    break
-
-            if current_wave is None:
-                print("[-] Không nhìn thấy ảnh wave1/2/3.png nào. Có thể đã qua màn hoặc lỗi tọa độ.")
-                break
-
-            # 2. Nếu Wave hiện tại y hệt Wave vừa đánh xong -> BỊ KẸT
-            if getattr(self, 'last_seen_wave', None) == current_wave:
-                print(f"[!] Vẫn đang ở Wave {current_wave}! Thực hiện đánh dự phòng...")
-                self.update_info_label(f"Stuck at Wave {current_wave}! Using Fallback...")
-                
-                action = self.cbo_fallback_action.get()
-                for _ in range(3):
-                    self.click_coord(action, 0.5)
-                
-                time.sleep(2) 
-                
-                # Đợi UI Spell Card biến mất do đang xả chiêu
-                wait_hide = time.time()
-                while self.is_running and (time.time() - wait_hide < 5):
-                    if self.vision.check_state() != "IN_BATTLE": break
-                    time.sleep(0.5)
-                    
-                # Đợi UI Spell Card hiện lại (chưa qua ải) HOẶC nút Next hiện ra (đã qua ải)
-                wait_fb = time.time()
-                while self.is_running and (time.time() - wait_fb < 15):
-                    self.check_pause()
-                    if self.vision.check_state() == "IN_BATTLE": break
-                    if self.vision.get_pos("btn_next.png"): break
-                    time.sleep(1)
-                
-                # Quay lại vòng lặp while để chụp ảnh Wave và check lại!
-            else:
-                # 3. Nếu Wave đã đổi -> QUA ẢI THÀNH CÔNG
-                print(f"[+] Đã tiến vào Wave {current_wave}!")
-                self.last_seen_wave = current_wave 
-                break
 
     def click_auto_confirm(self, max_wait=5, target_img="btn_confirm.png"):
         start_time = time.time()
         img_path = os.path.join(IMAGE_DIR, target_img)
         while time.time() - start_time < max_wait:
-            self.check_pause()
-            if not self.is_running: return False
+            p_time = self.check_pause()
+            if p_time > 0: start_time += p_time
+            
+            if not self.is_running or getattr(self, 'jump_flag', False) or getattr(self, 'jump_area_flag', -1) != -1: return False
             pos = self.vision.get_pos_absolute(img_path)
             if pos:
                 pyautogui.click(x=pos[0], y=pos[1])
-                time.sleep(1) 
+                self.wait_with_jump(1)
                 return True
             time.sleep(0.5)
         return False
@@ -1049,60 +1215,42 @@ class DynamicGroupBot:
     def execute_buff_selection(self, mode="Strict Tier 1"):
         self.update_info_label(f"Scanning Buff (Area {self.current_area})...")
         
-        # --- AGI UP CHECK (Chỉ nhặt 1 lần hoặc vô hạn) ---
-        if self.var_disable_skill_agi.get() or self.var_pick_agi_once.get():
-            pos_agi = self.vision.get_pos("buff_agi_up.png")
-            if pos_agi:
-                if self.var_pick_agi_once.get() and getattr(self, 'has_picked_agi_up', False):
-                    print("[*] Found Agi Up Sticker, but already picked once. Ignoring...")
-                else:
-                    print("[*] Found Agi Up Sticker! Clicking it.")
-                    pyautogui.click(x=pos_agi[0], y=pos_agi[1])
-                    time.sleep(0.3)
-                    self.has_picked_agi_up = True
-                    if self.var_disable_skill_agi.get():
-                        self.disable_skills_flag = True
-                    self.click_auto_confirm(max_wait=3, target_img="btn_confirm.png")
-                    return
-
         folder = os.path.join(IMAGE_DIR, f"area_{self.current_area}")
         tier1_images = sorted(glob.glob(os.path.join(folder, "tier1", "*.png")))
         all_tier_images = []
         for t in range(1, 6): 
             all_tier_images.extend(sorted(glob.glob(os.path.join(folder, f"tier{t}", "*.png"))))
             
-        # Sắp xếp để ưu tiên file có tên chứa 'buff_agi_up' lên đầu tiên (mặc kệ thứ tự alphabet)
         tier1_images = sorted(tier1_images, key=lambda x: 0 if "buff_agi_up" in os.path.basename(x).lower() else 1)
         all_tier_images = sorted(all_tier_images, key=lambda x: 0 if "buff_agi_up" in os.path.basename(x).lower() else 1)
             
-        redraws = 0
         max_redraws = 3
 
         while self.is_running:
             self.check_pause()
+            if getattr(self, 'jump_flag', False) or getattr(self, 'jump_area_flag', -1) != -1: return
             
             buff_clicked = False
             images_to_scan = tier1_images if mode == "Strict Tier 1" else all_tier_images
             
-            # Nếu đã dùng hết lượt Redraw, bỏ qua Strict và dùng Any Tier (tức là quét trọn bộ tier 2,3,4,5)
-            if redraws >= max_redraws:
+            if self.redraws_this_run >= max_redraws:
                 images_to_scan = all_tier_images
 
             for img_path in images_to_scan:
-                # Bỏ qua Agi Up nếu đã pick 1 lần và ô Checkbox "Only pick once" đang bật
-                if "buff_agi_up" in os.path.basename(img_path).lower():
+                is_agi = "buff_agi_up" in os.path.basename(img_path).lower()
+                
+                if is_agi:
                     if self.var_pick_agi_once.get() and getattr(self, 'has_picked_agi_up', False):
                         continue 
 
                 pos = self.vision.get_pos_absolute(img_path)
                 if pos: 
                     pyautogui.click(x=pos[0], y=pos[1])
-                    time.sleep(0.3) 
+                    self.wait_with_jump(0.3)
                     buff_clicked = True
                     
-                    # Đánh dấu cờ là đã lụm được thẻ Agi Up trong run này
-                    if "buff_agi_up" in os.path.basename(img_path).lower():
-                        print("[*] Picked Agi Up Sticker!")
+                    if is_agi:
+                        print("[*] Picked Agi Up Sticker from Area folder!")
                         self.has_picked_agi_up = True
                         if self.var_disable_skill_agi.get():
                             self.disable_skills_flag = True
@@ -1111,28 +1259,24 @@ class DynamicGroupBot:
             
             if buff_clicked:
                 if self.click_auto_confirm(max_wait=3, target_img="btn_confirm.png"):
-                    time.sleep(1) 
+                    self.wait_with_jump(1)
                 return
             
-            # NẾU KHÔNG CÓ BUFF NÀO TRONG TIER ĐANG QUÉT -> REDRAW
-            if redraws < max_redraws:
+            if self.redraws_this_run < max_redraws:
                 redraw_pos = self.vision.get_pos("btn_redraw.png")
-                # Nếu không thấy redraw sáng, tìm nút tối
                 if not redraw_pos: redraw_pos = self.vision.get_pos("btn_redraw_dark.png")
                 
                 if redraw_pos: 
                     pyautogui.click(x=redraw_pos[0], y=redraw_pos[1])
-                    redraws += 1
-                    time.sleep(3)
+                    self.redraws_this_run += 1
+                    self.wait_with_jump(3)
                 else:
-                    # Hoàn toàn không thấy cả 2 nút Redraw trên màn hình -> Chắc chắn hết lượt
-                    redraws = max_redraws 
+                    self.redraws_this_run = max_redraws 
             else:
-                # NẾU ĐÃ QUÉT SẠCH SẼ TỪ TIER 1 ĐẾN 5 (all_tier_images) MÀ VẪN KHÔNG CÓ BẤT KỲ ẢNH NÀO TRÙNG KHỚP -> BẤM RANDOM
                 print("[-] No buffs found in any tier after max redraws. Clicking Random Buff.")
                 self.click_coord("Random Buff", 1)
                 if self.click_auto_confirm(max_wait=3, target_img="btn_confirm.png"):
-                    time.sleep(1) 
+                    self.wait_with_jump(1)
                 return
 
     def bot_loop(self):
@@ -1145,17 +1289,25 @@ class DynamicGroupBot:
             if run_mode == "loop" and self.completed_loops >= self.loop_var.get(): break
             if run_mode == "time" and (time.time() - start_time_limit) >= max_duration: break
             
-            # Khởi tạo lại cờ đầu mỗi run
             self.current_step_idx = 0
             self.reset_run_flag = False
             self.disable_skills_flag = False 
             self.has_picked_agi_up = False 
-            self.last_seen_wave = None
+            self.has_entered_battle = False 
+            self.redraws_this_run = 0 
             
             while self.current_step_idx < len(self.main_script) and self.is_running:
                 self.check_pause()
                 
                 if self.reset_run_flag: break
+                
+                if getattr(self, 'jump_area_flag', -1) != -1:
+                    self.current_step_idx = self.jump_area_flag
+                    self.jump_area_flag = -1
+                
+                if getattr(self, 'jump_flag', False):
+                    self.jump_flag = False
+                    continue
 
                 act = self.main_script[self.current_step_idx]
                 self.root.after(0, self.update_listbox_selection, self.current_step_idx)
@@ -1165,53 +1317,62 @@ class DynamicGroupBot:
                 if cmd != "SEPARATOR":
                     print(f"Executing step {self.current_step_idx}: {cmd} -> {target}")
                     
-                    if cmd == "WAIT": time.sleep(float(target))
+                    if cmd == "WAIT": 
+                        self.wait_with_jump(float(target))
                     elif cmd == "CLICK": 
                         mapped_target = "Open Skill" if target in ["Close Skill", "Open/Close Skill"] else target
                         real_target = self.get_real_key(mapped_target)
                         
-                        is_skill = real_target.startswith("Char ") and "Skill" in real_target
-                        if is_skill and getattr(self, 'disable_skills_flag', False):
-                            print(f"[*] Skipping Skill {target} (Agi Up is active)")
+                        is_combat_skill = any(k in real_target for k in ["Skill", "Spell", "LastWord", "Open Skill", "Close Skill", "Open Spell"])
+                        
+                        if getattr(self, 'disable_skills_flag', False) and is_combat_skill:
+                            print(f"[*] Skipping {target} (Agi Up is active - Shot Only Mode)")
                         else:
                             self.click_coord(real_target)
-                            if is_skill:
+                            if is_combat_skill and "Skill" in real_target and "Open" not in real_target and "Close" not in real_target and not getattr(self, 'jump_flag', False):
                                 print(f"[*] Auto Confirm after using: {target}")
-                                time.sleep(1.0) 
+                                self.wait_with_jump(1.0)
                                 self.click_auto_confirm(max_wait=4, target_img="btn_confirm.png")
                             
                     elif cmd == "CHOOSE_DIFFICULTY": 
                         for _ in range(5): 
-                            if not self.is_running or self.reset_run_flag: break
+                            if not self.is_running or self.reset_run_flag or getattr(self, 'jump_flag', False) or getattr(self, 'jump_area_flag', -1) != -1: break
                             pos = self.vision.get_pos(target)
                             if pos:
                                 pyautogui.click(x=pos[0], y=pos[1])
-                                time.sleep(1)
+                                self.wait_with_jump(1)
                                 break
-                            time.sleep(1)
+                            self.wait_with_jump(1)
                             
                     elif cmd == "CONFIRM": self.click_auto_confirm(target_img="btn_confirm.png") 
                     elif cmd == "CONFIRM_PARTY_SLOT": self.click_auto_confirm(target_img="btn_confirm_party.png")
                     elif cmd == "BOOST":
-                        for _ in range(int(target)): self.click_coord("Boost", 0.2)
+                        for _ in range(int(target)): 
+                            if getattr(self, 'jump_flag', False) or getattr(self, 'jump_area_flag', -1) != -1: break
+                            self.click_coord("Boost", 0.2)
                     elif cmd == "WAIT_FOR_SCREEN": 
                         self.wait_for_screen(target)
-                        
-                        if target == "BATTLE_SCREEN" and self.var_enable_wave_check.get():
-                            self.handle_wave_check()
+                        if target == "BATTLE_SCREEN":
+                            self.has_entered_battle = True 
                             
                     elif cmd == "CLICK_SKIP_CORNER": 
-                        for _ in range(int(target)): self.click_coord("Skip Corner", 1)
+                        for _ in range(int(target)): 
+                            if getattr(self, 'jump_flag', False) or getattr(self, 'jump_area_flag', -1) != -1: break
+                            self.click_coord("Skip Corner", 1)
                     elif cmd == "SELECT_BUFF": self.execute_buff_selection(target)
                     elif cmd == "START_AREA":
+                        self.has_entered_battle = False 
                         self.current_area = int(target)
                         self.update_info_label(f"Updated to Area {self.current_area}")
                     elif cmd == "END_AREA": 
                         self.current_area += 1
                         self.update_info_label(f"Advancing to Area {self.current_area}...")
                 
-                if not self.reset_run_flag:
+                if not self.reset_run_flag and not getattr(self, 'jump_flag', False) and getattr(self, 'jump_area_flag', -1) == -1:
                     self.current_step_idx += 1
+                    
+                if getattr(self, 'jump_flag', False):
+                    self.jump_flag = False
 
             if self.is_running:
                 self.completed_loops += 1
@@ -1226,7 +1387,7 @@ class DynamicGroupBot:
                 
         if self.is_running:
             print("\n[+] Farming Complete!")
-            self.toggle_bot()
+            self.root.after(0, self.force_stop)
 
 if __name__ == "__main__":
     if not os.path.exists(IMAGE_DIR): os.makedirs(IMAGE_DIR, exist_ok=True)

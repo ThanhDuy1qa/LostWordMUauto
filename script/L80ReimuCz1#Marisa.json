@@ -1,132 +1,148 @@
 {
     "coords": {
-        "Open Skill": {
-            "x": 1731,
-            "y": 769
+        "Open/Close Skill": {
+            "x": 0,
+            "y": 0
         },
         "Open Spell": {
-            "x": 161,
-            "y": 696
+            "x": 0,
+            "y": 0
         },
         "Boost": {
-            "x": 1526,
-            "y": 856
+            "x": 0,
+            "y": 0
         },
         "Spread Shot": {
-            "x": 519,
-            "y": 852
+            "x": 0,
+            "y": 0
         },
         "Focus Shot": {
-            "x": 1100,
-            "y": 846
+            "x": 0,
+            "y": 0
         },
         "Random Buff": {
-            "x": 977,
-            "y": 456
+            "x": 0,
+            "y": 0
         },
         "Skip Corner": {
-            "x": 83,
-            "y": 472
+            "x": 0,
+            "y": 0
         },
         "Main Stage": {
-            "x": 1269,
-            "y": 312
+            "x": 0,
+            "y": 0
         },
         "Party Button": {
-            "x": 209,
-            "y": 227
+            "x": 0,
+            "y": 0
         },
         "Party Back": {
-            "x": 124,
-            "y": 98
+            "x": 0,
+            "y": 0
         },
         "Battle": {
-            "x": 1513,
-            "y": 914
+            "x": 0,
+            "y": 0
         },
         "Challenge": {
-            "x": 1610,
-            "y": 929
+            "x": 0,
+            "y": 0
         },
         "Spell 1": {
-            "x": 358,
-            "y": 517
+            "x": 0,
+            "y": 0
         },
         "Spell 2": {
-            "x": 613,
-            "y": 466
+            "x": 0,
+            "y": 0
         },
         "Spell 3": {
-            "x": 882,
-            "y": 346
+            "x": 0,
+            "y": 0
         },
         "Spell 4": {
-            "x": 1163,
-            "y": 290
+            "x": 0,
+            "y": 0
         },
         "LastWord": {
-            "x": 1430,
-            "y": 277
-        },
-        "Custom Point 1": {
             "x": 0,
             "y": 0
         },
-        "Custom Point 2": {
+        "Close Emulator": {
             "x": 0,
             "y": 0
         },
-        "Custom Point 3": {
+        "Confirm Close Emu": {
             "x": 0,
             "y": 0
         },
-        "Custom Point 4": {
+        "Game Desktop Icon": {
             "x": 0,
             "y": 0
         },
-        "Custom Point 5": {
+        "Full Screen": {
+            "x": 0,
+            "y": 0
+        },
+        "Center Screen": {
+            "x": 0,
+            "y": 0
+        },
+        "Enter Game Mode": {
+            "x": 0,
+            "y": 0
+        },
+        "Give Up Run": {
+            "x": 0,
+            "y": 0
+        },
+        "Open Skill": {
+            "x": 0,
+            "y": 0
+        },
+        "Close Skill": {
             "x": 0,
             "y": 0
         },
         "Slot 1 Open List": {
-            "x": 584,
-            "y": 579
+            "x": 0,
+            "y": 0
         },
         "Slot 1 Selected Grid Pos": {
-            "x": 446,
-            "y": 324
+            "x": 0,
+            "y": 0
         },
         "Char 1 Skill 1": {
-            "x": 340,
-            "y": 848
+            "x": 0,
+            "y": 0
         },
         "Char 1 Skill 2": {
-            "x": 459,
-            "y": 852
+            "x": 0,
+            "y": 0
         },
         "Char 1 Skill 3": {
-            "x": 595,
-            "y": 846
+            "x": 0,
+            "y": 0
         },
         "Slot 2 Open List": {
-            "x": 875,
-            "y": 643
+            "x": 0,
+            "y": 0
         },
         "Slot 2 Selected Grid Pos": {
-            "x": 208,
-            "y": 322
+            "x": 0,
+            "y": 0
         },
         "Char 2 Skill 1": {
-            "x": 818,
-            "y": 854
+            "x": 0,
+            "y": 0
         },
         "Char 2 Skill 2": {
-            "x": 937,
-            "y": 844
+            "x": 0,
+            "y": 0
         },
         "Char 2 Skill 3": {
-            "x": 1055,
-            "y": 844
+            "x": 0,
+            "y": 0
         },
         "Slot 3 Open List": {
             "x": 0,
@@ -147,323 +163,24 @@
         "Char 3 Skill 3": {
             "x": 0,
             "y": 0
-        },
-        "Open/Close Skill": {
-            "x": 1731,
-            "y": 769
-        },
-        "Close Skill": {
-            "x": 1731,
-            "y": 769
         }
     },
-    "script": [
-        "[CLICK] -> Main Stage",
-        "[WAIT] -> 3",
-        "[CLICK] -> Challenge",
-        "[START_AREA] -> 1",
-        "[WAIT_FOR_SCREEN] -> BUFF_SCREEN",
-        "[SELECT_BUFF] -> Strict Tier 1",
-        "[CHOOSE_DIFFICULTY] -> btn_hard.png",
-        "[CLICK] -> Challenge",
-        "[WAIT] -> 5",
-        "[CLICK] -> Party Button",
-        "[CLICK] -> L80 Reimu Open List",
-        "[WAIT_FOR_SCREEN] -> SELECT_PARTY_SCREEN",
-        "[CLICK] -> L80 Reimu Selected Grid Pos",
-        "[CONFIRM_PARTY_SLOT] -> None",
-        "[CLICK] -> Cz1# Marisa Open List",
-        "[WAIT_FOR_SCREEN] -> SELECT_PARTY_SCREEN",
-        "[CLICK] -> Cz1# Marisa Selected Grid Pos",
-        "[CONFIRM_PARTY_SLOT] -> None",
-        "[CLICK] -> Party Back",
-        "[WAIT_FOR_SCREEN] -> PREPARE_SCREEN",
-        "[CLICK] -> Battle",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> L80 Reimu Skill 3",
-        "[CLICK] -> Cz1# Marisa Skill 3",
-        "[CLICK] -> Close Skill",
-        "[BOOST] -> 3",
-        "[CLICK] -> Open Spell",
-        "[CLICK] -> L80 Reimu Spell 2",
-        "[BOOST] -> 1",
-        "[CLICK] -> Cz1# Marisa Spread Shot",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> Cz1# Marisa Skill 1",
-        "[CLICK] -> Cz1# Marisa Skill 2",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> Close Skill",
-        "[BOOST] -> 1",
-        "[CLICK] -> Open Spell",
-        "[CLICK] -> L80 Reimu Spell 1",
-        "[BOOST] -> 3",
-        "[CLICK] -> Open Spell",
-        "[CLICK] -> Cz1# Marisa Spell 2",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Spell 2",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> L80 Reimu Skill 2",
-        "[CLICK] -> Close Skill",
-        "[BOOST] -> 3",
-        "[CLICK] -> Open Spell",
-        "[CLICK] -> L80 Reimu Spell 3",
-        "[CLICK] -> Open Spell",
-        "[BOOST] -> 3",
-        "[CLICK] -> Cz1# Marisa Spell 4",
-        "[WAIT_FOR_SCREEN] -> END_BATTLE_SCREEN",
-        "[END_AREA] -> None",
-        "[SEPARATOR] -> ========== END OF AREA ==========",
-        "[START_AREA] -> 2",
-        "[CLICK_SKIP_CORNER] -> 3",
-        "[WAIT_FOR_SCREEN] -> BUFF_SCREEN",
-        "[SELECT_BUFF] -> Strict Tier 1",
-        "[CLICK_SKIP_CORNER] -> 4",
-        "[SELECT_BUFF] -> Any Tier",
-        "[CLICK_SKIP_CORNER] -> 4",
-        "[CHOOSE_DIFFICULTY] -> btn_hard.png",
-        "[CLICK] -> Challenge",
-        "[WAIT_FOR_SCREEN] -> PREPARE_SCREEN",
-        "[CLICK] -> Battle",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> L80 Reimu Skill 3",
-        "[CLICK] -> Cz1# Marisa Skill 3",
-        "[CLICK] -> Close Skill",
-        "[BOOST] -> 3",
-        "[CLICK] -> Open Spell",
-        "[CLICK] -> L80 Reimu Spell 4",
-        "[BOOST] -> 1",
-        "[CLICK] -> Cz1# Marisa Spread Shot",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> Cz1# Marisa Skill 1",
-        "[CLICK] -> Cz1# Marisa Skill 2",
-        "[CLICK] -> Close Skill",
-        "[CLICK] -> L80 Reimu Spread Shot",
-        "[CLICK] -> Open Spell",
-        "[BOOST] -> 3",
-        "[CLICK] -> Cz1# Marisa LastWord",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> Cz1# Marisa Skill 2",
-        "[CLICK] -> L80 Reimu Skill 2",
-        "[CLICK] -> Close Skill",
-        "[CLICK] -> Open Spell",
-        "[BOOST] -> 3",
-        "[CLICK] -> L80 Reimu LastWord",
-        "[BOOST] -> 2",
-        "[CLICK] -> Cz1# Marisa Spread Shot",
-        "[WAIT_FOR_SCREEN] -> END_BATTLE_SCREEN",
-        "[END_AREA] -> None",
-        "[SEPARATOR] -> ========== END OF AREA ==========",
-        "[START_AREA] -> 3",
-        "[CLICK_SKIP_CORNER] -> 3",
-        "[WAIT_FOR_SCREEN] -> BUFF_SCREEN",
-        "[SELECT_BUFF] -> Strict Tier 1",
-        "[CLICK_SKIP_CORNER] -> 4",
-        "[SELECT_BUFF] -> Strict Tier 1",
-        "[CLICK_SKIP_CORNER] -> 4",
-        "[CHOOSE_DIFFICULTY] -> btn_lunatic.png",
-        "[CLICK] -> Challenge",
-        "[WAIT_FOR_SCREEN] -> PREPARE_SCREEN",
-        "[CLICK] -> Battle",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> Cz1# Marisa Skill 1",
-        "[CLICK] -> Cz1# Marisa Skill 2",
-        "[CLICK] -> Close Skill",
-        "[CLICK] -> L80 Reimu Spread Shot",
-        "[BOOST] -> 3",
-        "[CLICK] -> Cz1# Marisa Spread Shot",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> L80 Reimu Skill 2",
-        "[CLICK] -> Close Skill",
-        "[CLICK] -> L80 Reimu Spread Shot",
-        "[BOOST] -> 2",
-        "[CLICK] -> Cz1# Marisa Spread Shot",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> Cz1# Marisa Skill 3",
-        "[CLICK] -> Close Skill",
-        "[CLICK] -> L80 Reimu Spread Shot",
-        "[BOOST] -> 2",
-        "[CLICK] -> Cz1# Marisa Spread Shot",
-        "[WAIT_FOR_SCREEN] -> END_BATTLE_SCREEN",
-        "[END_AREA] -> None",
-        "[SEPARATOR] -> ========== END OF AREA ==========",
-        "[START_AREA] -> 4",
-        "[CLICK_SKIP_CORNER] -> 3",
-        "[WAIT_FOR_SCREEN] -> BUFF_SCREEN",
-        "[SELECT_BUFF] -> Any Tier",
-        "[CLICK_SKIP_CORNER] -> 4",
-        "[SELECT_BUFF] -> Any Tier",
-        "[CLICK_SKIP_CORNER] -> 4",
-        "[CHOOSE_DIFFICULTY] -> btn_lunatic.png",
-        "[CLICK] -> Challenge",
-        "[WAIT_FOR_SCREEN] -> PREPARE_SCREEN",
-        "[CLICK] -> Battle",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> Cz1# Marisa Skill 1",
-        "[CLICK] -> Cz1# Marisa Skill 2",
-        "[CLICK] -> Close Skill",
-        "[CLICK] -> L80 Reimu Spread Shot",
-        "[BOOST] -> 3",
-        "[CLICK] -> Cz1# Marisa Spread Shot",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> L80 Reimu Skill 2",
-        "[CLICK] -> Close Skill",
-        "[CLICK] -> L80 Reimu Spread Shot",
-        "[BOOST] -> 2",
-        "[CLICK] -> Cz1# Marisa Spread Shot",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> Cz1# Marisa Skill 3",
-        "[CLICK] -> Close Skill",
-        "[CLICK] -> L80 Reimu Spread Shot",
-        "[BOOST] -> 2",
-        "[CLICK] -> Cz1# Marisa Spread Shot",
-        "[WAIT_FOR_SCREEN] -> END_BATTLE_SCREEN",
-        "[END_AREA] -> None",
-        "[SEPARATOR] -> ========== END OF AREA ==========",
-        "[START_AREA] -> 5",
-        "[CLICK_SKIP_CORNER] -> 3",
-        "[WAIT_FOR_SCREEN] -> BUFF_SCREEN",
-        "[SELECT_BUFF] -> Any Tier",
-        "[CLICK_SKIP_CORNER] -> 4",
-        "[SELECT_BUFF] -> Any Tier",
-        "[CLICK_SKIP_CORNER] -> 4",
-        "[CHOOSE_DIFFICULTY] -> btn_lunatic.png",
-        "[CLICK] -> Challenge",
-        "[WAIT_FOR_SCREEN] -> PREPARE_SCREEN",
-        "[CLICK] -> Battle",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> Cz1# Marisa Skill 1",
-        "[CLICK] -> Cz1# Marisa Skill 2",
-        "[CLICK] -> Close Skill",
-        "[CLICK] -> L80 Reimu Spread Shot",
-        "[BOOST] -> 3",
-        "[CLICK] -> Cz1# Marisa Spread Shot",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> L80 Reimu Skill 2",
-        "[CLICK] -> Close Skill",
-        "[CLICK] -> L80 Reimu Spread Shot",
-        "[BOOST] -> 2",
-        "[CLICK] -> Cz1# Marisa Spread Shot",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> Cz1# Marisa Skill 3",
-        "[CLICK] -> Close Skill",
-        "[CLICK] -> L80 Reimu Spread Shot",
-        "[BOOST] -> 2",
-        "[CLICK] -> Cz1# Marisa Spread Shot",
-        "[WAIT_FOR_SCREEN] -> END_BATTLE_SCREEN",
-        "[END_AREA] -> None",
-        "[SEPARATOR] -> ========== END OF AREA ==========",
-        "[START_AREA] -> 6",
-        "[CLICK_SKIP_CORNER] -> 3",
-        "[WAIT_FOR_SCREEN] -> BUFF_SCREEN",
-        "[SELECT_BUFF] -> Any Tier",
-        "[CLICK_SKIP_CORNER] -> 4",
-        "[SELECT_BUFF] -> Any Tier",
-        "[CLICK_SKIP_CORNER] -> 4",
-        "[CHOOSE_DIFFICULTY] -> btn_lunatic.png",
-        "[CLICK] -> Challenge",
-        "[WAIT_FOR_SCREEN] -> PREPARE_SCREEN",
-        "[CLICK] -> Battle",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> Cz1# Marisa Skill 1",
-        "[CLICK] -> Cz1# Marisa Skill 2",
-        "[CLICK] -> Close Skill",
-        "[CLICK] -> L80 Reimu Spread Shot",
-        "[BOOST] -> 3",
-        "[CLICK] -> Cz1# Marisa Spread Shot",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> L80 Reimu Skill 2",
-        "[CLICK] -> Close Skill",
-        "[CLICK] -> L80 Reimu Spread Shot",
-        "[BOOST] -> 2",
-        "[CLICK] -> Cz1# Marisa Spread Shot",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> Cz1# Marisa Skill 3",
-        "[CLICK] -> Close Skill",
-        "[CLICK] -> L80 Reimu Spread Shot",
-        "[BOOST] -> 2",
-        "[CLICK] -> Cz1# Marisa Spread Shot",
-        "[WAIT_FOR_SCREEN] -> END_BATTLE_SCREEN",
-        "[END_AREA] -> None",
-        "[SEPARATOR] -> ========== END OF AREA ==========",
-        "[START_AREA] -> 7",
-        "[CLICK_SKIP_CORNER] -> 3",
-        "[WAIT_FOR_SCREEN] -> BUFF_SCREEN",
-        "[SELECT_BUFF] -> Any Tier",
-        "[CLICK_SKIP_CORNER] -> 4",
-        "[SELECT_BUFF] -> Any Tier",
-        "[CLICK_SKIP_CORNER] -> 4",
-        "[CHOOSE_DIFFICULTY] -> btn_boss_lunatic.png",
-        "[CLICK] -> Challenge",
-        "[WAIT_FOR_SCREEN] -> PREPARE_SCREEN",
-        "[CLICK] -> Battle",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> Cz1# Marisa Skill 1",
-        "[CLICK] -> Cz1# Marisa Skill 2",
-        "[CLICK] -> Close Skill",
-        "[CLICK] -> L80 Reimu Spread Shot",
-        "[BOOST] -> 3",
-        "[CLICK] -> Cz1# Marisa Spread Shot",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> L80 Reimu Skill 2",
-        "[CLICK] -> Close Skill",
-        "[CLICK] -> L80 Reimu Spread Shot",
-        "[BOOST] -> 2",
-        "[CLICK] -> Cz1# Marisa Spread Shot",
-        "[WAIT_FOR_SCREEN] -> BATTLE_SCREEN",
-        "[CLICK] -> Open Skill",
-        "[CLICK] -> L80 Reimu Skill 1",
-        "[CLICK] -> Cz1# Marisa Skill 3",
-        "[CLICK] -> Close Skill",
-        "[CLICK] -> L80 Reimu Spread Shot",
-        "[BOOST] -> 2",
-        "[CLICK] -> Cz1# Marisa Spread Shot",
-        "[WAIT_FOR_SCREEN] -> END_BATTLE_SCREEN",
-        "[END_AREA] -> None",
-        "[SEPARATOR] -> ========== END OF AREA ==========",
-        "[CLICK_SKIP_CORNER] -> 4",
-        "[CLICK_SKIP_CORNER] -> 5"
-    ],
+    "script": [],
     "char_notes": {
-        "1": "L80 Reimu",
-        "2": "Cz1# Marisa",
+        "1": "",
+        "2": "",
         "3": ""
+    },
+    "options": {
+        "run_mode": "infinite",
+        "loop_var": 1,
+        "hour_var": 0,
+        "min_var": 30,
+        "disable_skill_agi": false,
+        "enable_fallback": true,
+        "fallback_action": "Spread Shot",
+        "pick_agi_once": true,
+        "enable_rescue": false,
+        "rescue_smart": false
     }
 }
