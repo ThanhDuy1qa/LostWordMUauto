@@ -8,7 +8,10 @@ import os
 import glob
 import sys 
 import keyboard
-from PIL import Image
+import cv2
+import numpy as np
+import mss
+from datetime import datetime
 
 CONFIDENCE = 0.8
 
@@ -20,32 +23,138 @@ else:
 IMAGE_DIR = os.path.join(BASE_DIR, "images")
 
 # ==========================================
-# 1. VISION MODULE
+# 0. LOGGING & ERRORS DIRECTORY SETUP (DYNAMIC)
+# ==========================================
+LOG_DIR = os.path.join(BASE_DIR, "logs")
+ERROR_DIR = os.path.join(BASE_DIR, "errors")
+os.makedirs(LOG_DIR, exist_ok=True)
+os.makedirs(ERROR_DIR, exist_ok=True)
+
+# Biến toàn cục để kiểm soát việc ghi log ra file
+GLOBAL_ENABLE_LOG_FILE = True
+
+def custom_print(*args, **kwargs):
+    msg = " ".join(map(str, args))
+    
+    timestamp = datetime.now().strftime('[%H:%M:%S]')
+    out_msg = f"{timestamp} {msg}"
+    
+    # Chỉ ghi ra file nếu tuỳ chọn được bật
+    if GLOBAL_ENABLE_LOG_FILE:
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        log_date_dir = os.path.join(LOG_DIR, current_date)
+        if not os.path.exists(log_date_dir):
+            os.makedirs(log_date_dir, exist_ok=True)
+            
+        log_file = os.path.join(log_date_dir, "bot_log.txt")
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(out_msg + "\n")
+        
+    # Luôn in ra console
+    sys.stdout.write(out_msg + "\n")
+    sys.stdout.flush()
+
+print = custom_print
+
+print("\n" + "="*50)
+print("🚀 [SYSTEM] API MORIYA UNMAPPED AUTO - STARTED")
+print("="*50)
+
+# ==========================================
+# 1. VISION MODULE (UPGRADED: OPENCV + MSS)
 # ==========================================
 class GameVision:
     def __init__(self, folder=IMAGE_DIR):
         self.folder = folder
+        self.sct = mss.MSS()
 
-    def get_pos(self, img_name, conf=CONFIDENCE, gray=False):
+    def _search_template(self, img_path, conf, gray):
+        try:
+            if not os.path.exists(img_path): return None
+            
+            monitor = self.sct.monitors[0]
+            screen = np.array(self.sct.grab(monitor))
+            
+            if gray:
+                screen_gray = cv2.cvtColor(screen, cv2.COLOR_BGRA2GRAY)
+                template = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+                if template is None: return None
+                res = cv2.matchTemplate(screen_gray, template, cv2.TM_CCOEFF_NORMED)
+            else:
+                screen_bgr = cv2.cvtColor(screen, cv2.COLOR_BGRA2BGR)
+                template = cv2.imread(img_path, cv2.IMREAD_COLOR)
+                if template is None: return None
+                res = cv2.matchTemplate(screen_bgr, template, cv2.TM_CCOEFF_NORMED)
+                
+            min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+            
+            if max_val >= conf:
+                h, w = template.shape[:2]
+                center_x = max_loc[0] + w // 2 + monitor["left"]
+                center_y = max_loc[1] + h // 2 + monitor["top"]
+                return center_x, center_y
+        except Exception as e:
+            print(f"[-] Vision Core Error: {e}")
+        return None
+
+    def get_brightest_pos(self, img_name, conf=CONFIDENCE):
+        """Find ALL buttons on the screen and return the coordinates of the BRIGHTEST button among the BEST MATCHES"""
         try:
             full_path = os.path.join(self.folder, img_name)
-            pos = pyautogui.locateCenterOnScreen(full_path, confidence=conf, grayscale=gray)
-            if pos: return pos.x, pos.y
-        except: pass
+            if not os.path.exists(full_path): return None
+            
+            monitor = self.sct.monitors[0]
+            screen = np.array(self.sct.grab(monitor))
+            screen_bgr = cv2.cvtColor(screen, cv2.COLOR_BGRA2BGR)
+            
+            template = cv2.imread(full_path, cv2.IMREAD_COLOR)
+            if template is None: return None
+            
+            res = cv2.matchTemplate(screen_bgr, template, cv2.TM_CCOEFF_NORMED)
+            loc = np.where(res >= conf)
+            
+            matches = []
+            h, w = template.shape[:2]
+            for pt in zip(*loc[::-1]):
+                center_x = pt[0] + w // 2 + monitor["left"]
+                center_y = pt[1] + h // 2 + monitor["top"]
+                
+                region = screen_bgr[pt[1]:pt[1]+h, pt[0]:pt[0]+w]
+                brightness = np.mean(region)
+                
+                matches.append({'x': center_x, 'y': center_y, 'bright': brightness, 'score': res[pt[1], pt[0]]})
+                
+            if not matches: return None
+            
+            filtered = []
+            for m in sorted(matches, key=lambda k: k['score'], reverse=True):
+                if not any(abs(m['x'] - f['x']) < w//2 and abs(m['y'] - f['y']) < h//2 for f in filtered):
+                    filtered.append(m)
+                    
+            if not filtered: return None
+            
+            max_score = max(m['score'] for m in filtered)
+            best_matches = [m for m in filtered if m['score'] >= max_score - 0.05]
+            best_matches.sort(key=lambda k: k['bright'], reverse=True)
+            
+            return best_matches[0]['x'], best_matches[0]['y']
+            
+        except Exception as e:
+            print(f"[-] Vision Brightest Error: {e}")
         return None
 
+    def get_pos(self, img_name, conf=CONFIDENCE, gray=False):
+        full_path = os.path.join(self.folder, img_name)
+        return self._search_template(full_path, conf, gray)
+
     def get_pos_absolute(self, img_path, conf=CONFIDENCE, gray=False):
-        try:
-            pos = pyautogui.locateCenterOnScreen(img_path, confidence=conf, grayscale=gray)
-            if pos: return pos.x, pos.y
-        except: pass
-        return None
+        return self._search_template(img_path, conf, gray)
 
     def check_state(self):
         if self.get_pos("btn_confirm.png"): return "DISCONNECT"
         if self.get_pos("btn_spell_card.png"): return "IN_BATTLE"
         if self.get_pos("btn_redraw.png") or self.get_pos("btn_redraw_dark.png"): return "BUFF_SELECT"
-        if self.get_pos("btn_set_party.png") or self.get_pos("btn_challenge.png"): return "PREPARE"
+        if self.get_pos("btn_set_party.png"): return "PREPARE"
         return "UNKNOWN"
 
 
@@ -55,7 +164,7 @@ class GameVision:
 class DynamicGroupBot:
     def __init__(self, root):
         self.root = root
-        self.root.title("Api Moriya Unmapped Auto - Advanced Edition")
+        self.root.title("Api Moriya Unmapped Auto")
         self.root.geometry("1050x1000")
         
         icon_path = os.path.join(BASE_DIR, "icon.ico")
@@ -68,10 +177,11 @@ class DynamicGroupBot:
         self.is_paused = False 
         self.current_area = 1
         
-        # --- COUNTERS ---
+        # --- COUNTERS & FLAGS ---
         self.completed_loops = 0
         self.successful_runs = 0
         self.failed_runs = 0
+        self.total_rescues = 0 
         
         self.current_step_idx = 0 
         self.jump_flag = False 
@@ -81,6 +191,7 @@ class DynamicGroupBot:
         self.redraws_this_run = 0
         self.consecutive_rescues = 0
         self.party_setup_done_in_area1 = False
+        self.run_cleared = False
         
         self.char_notes = {"1": "", "2": "", "3": ""}
         self.char_note_vars = {}
@@ -99,9 +210,9 @@ class DynamicGroupBot:
         self.spell_keys.append("LastWord")
         
         self.rescue_keys = [
-            "Close Emulator", "Confirm Close Emu", 
-            "Game Desktop Icon", "Full Screen", "Center Screen", 
-            "Enter Game Mode", "Give Up Run"
+            "Close Emulator", 
+            "Game Desktop Icon", "Center Screen", 
+            "Moriya Unmapped", "Give Up Run"
         ]
         
         self.all_possible_keys = []
@@ -125,6 +236,62 @@ class DynamicGroupBot:
         self.current_pause_hotkey = None
 
         self.build_ui()
+        self.init_hud() 
+        self.init_osd()
+        self.auto_load_last_profile()
+        self.sync_logging_state() # Đồng bộ state log lúc khởi tạo
+
+    def sync_logging_state(self):
+        global GLOBAL_ENABLE_LOG_FILE
+        GLOBAL_ENABLE_LOG_FILE = self.var_save_error_screenshots.get()
+
+    def init_hud(self):
+        self.hud_win = tk.Toplevel(self.root)
+        self.hud_win.overrideredirect(True) 
+        self.hud_win.attributes("-topmost", True) 
+        self.hud_win.attributes("-alpha", 0.8) 
+        self.hud_win.config(bg="black", padx=10, pady=5)
+        
+        screen_w = self.root.winfo_screenwidth()
+        self.hud_win.geometry(f"+{int(screen_w/2) - 200}+20")
+        
+        self.hud_label = tk.Label(self.hud_win, text="Ready...", font=("Consolas", 14, "bold"), fg="#00FF00", bg="black")
+        self.hud_label.pack()
+        self.hud_win.withdraw() 
+
+    def update_hud(self, text):
+        if not self.var_show_osd.get():
+            self.hud_win.withdraw()
+            return
+        self.hud_label.config(text=text)
+        if self.is_running and not self.is_paused:
+            self.hud_win.deiconify()
+
+    def init_osd(self):
+        self.osd_win = tk.Toplevel(self.root)
+        self.osd_win.overrideredirect(True) 
+        self.osd_win.attributes("-topmost", True) 
+        self.osd_win.attributes("-transparentcolor", "black") 
+        self.osd_win.config(bg="black")
+        
+        self.osd_label = tk.Label(self.osd_win, text="", font=("Arial", 16, "bold"), fg="#00ff00", bg="black")
+        self.osd_label.pack()
+        self.osd_win.withdraw() 
+
+    def show_osd(self, text, x=None, y=None):
+        if not self.var_show_osd.get(): return
+        self.osd_label.config(text=text)
+        self.osd_win.deiconify() 
+        
+        if x is not None and y is not None:
+            self.osd_win.geometry(f"+{int(x) + 20}+{int(y) - 40}")
+        else:
+            self.osd_win.geometry("+100+100")
+            
+        if hasattr(self, 'osd_timer'):
+            self.root.after_cancel(self.osd_timer)
+        self.osd_timer = self.root.after(1500, self.osd_win.withdraw)
+
 
     def build_ui(self):
         self.notebook = ttk.Notebook(self.root)
@@ -302,18 +469,53 @@ class DynamicGroupBot:
         frame_rescue_opt = ttk.Frame(frame_settings)
         frame_rescue_opt.grid(row=6, column=0, columnspan=2, sticky="w", padx=5, pady=5)
         self.var_enable_rescue = tk.BooleanVar(value=False) 
-        self.chk_rescue = ttk.Checkbutton(frame_rescue_opt, text="Enable Auto Rescue (Restart Emulator if frozen)", variable=self.var_enable_rescue, command=self.toggle_rescue_sub)
+        self.chk_rescue = ttk.Checkbutton(frame_rescue_opt, text="Restart Emulator if frozen", variable=self.var_enable_rescue, command=self.toggle_rescue_sub)
         self.chk_rescue.pack(anchor="w", padx=5)
         
         self.frame_rescue_sub = ttk.Frame(frame_settings)
         self.frame_rescue_sub.grid(row=7, column=0, columnspan=2, sticky="w", padx=30, pady=0)
+        
         self.var_rescue_smart = tk.BooleanVar(value=False) 
-        self.chk_rescue_smart = ttk.Checkbutton(self.frame_rescue_sub, text="Smart Area Jump (Check Buff Screen to advance/retry Area)", variable=self.var_rescue_smart)
+        self.chk_rescue_smart = ttk.Checkbutton(self.frame_rescue_sub, text="Smart Area Jump", variable=self.var_rescue_smart)
         self.chk_rescue_smart.pack(side="left")
-        ttk.Label(self.frame_rescue_sub, text="⚠️ Warning: Feature may fail if emulator lags.", foreground="red", font=("Arial", 9)).pack(side="left", padx=5)
+        
+        self.var_rescue_date_changed = tk.BooleanVar(value=False)
+        self.chk_rescue_date = ttk.Checkbutton(self.frame_rescue_sub, text="Enable Date Changed Restart", variable=self.var_rescue_date_changed)
+        self.chk_rescue_date.pack(side="left", padx=10)
+        
+        self.frame_rescue_time = ttk.Frame(frame_settings)
+        self.frame_rescue_time.grid(row=8, column=0, columnspan=2, sticky="w", padx=30, pady=2)
+        self.var_wait_emu = tk.IntVar(value=60)
+        self.var_wait_cleanup = tk.IntVar(value=30)
+        self.var_timeout_limit = tk.IntVar(value=90)
+        
+        ttk.Label(self.frame_rescue_time, text="Emu Load Wait (s):").pack(side="left")
+        self.entry_wait_emu = ttk.Entry(self.frame_rescue_time, textvariable=self.var_wait_emu, width=5)
+        self.entry_wait_emu.pack(side="left", padx=5)
+        
+        ttk.Label(self.frame_rescue_time, text="Game Load Wait (s):").pack(side="left", padx=(10, 0))
+        self.entry_wait_cleanup = ttk.Entry(self.frame_rescue_time, textvariable=self.var_wait_cleanup, width=5)
+        self.entry_wait_cleanup.pack(side="left", padx=5)
+        
+        # New configurable timeout limit entry
+        ttk.Label(self.frame_rescue_time, text="Screen Timeout (s):").pack(side="left", padx=(10, 0))
+        self.entry_timeout = ttk.Entry(self.frame_rescue_time, textvariable=self.var_timeout_limit, width=5)
+        self.entry_timeout.pack(side="left", padx=5)
+        
+        frame_err_screenshot = ttk.Frame(frame_settings)
+        frame_err_screenshot.grid(row=9, column=0, columnspan=2, sticky="w", padx=5, pady=5)
+        self.var_save_error_screenshots = tk.BooleanVar(value=True)
+        ttk.Checkbutton(frame_err_screenshot, text="Save Logs to File & Error Screenshots", variable=self.var_save_error_screenshots, command=self.sync_logging_state).pack(side="left", padx=5)
+        
+        self.var_show_osd = tk.BooleanVar(value=True)
+        ttk.Checkbutton(frame_err_screenshot, text="Show OSD / HUD (On-Screen Text)", variable=self.var_show_osd).pack(side="left", padx=15)
         
         self.lbl_status = ttk.Label(tab_run, text="Status: STOPPED", foreground="red", font=("Arial", 14, "bold"))
         self.lbl_status.pack(pady=5)
+        
+        self.lbl_counters = ttk.Label(tab_run, text="Success: 0 | Failed: 0 | Total: 0", font=("Arial", 12, "bold"), foreground="blue")
+        self.lbl_counters.pack(pady=2)
+
         self.lbl_info = ttk.Label(tab_run, text="Ready", font=("Arial", 11))
         self.lbl_info.pack(pady=2)
 
@@ -371,7 +573,7 @@ class DynamicGroupBot:
         frame_file = ttk.Frame(tab_run)
         frame_file.pack(pady=10)
         ttk.Button(frame_file, text="💾 Save Profile", command=self.save_profile).pack(side="left", expand=True, padx=5)
-        ttk.Button(frame_file, text="📂 Load Profile", command=self.load_profile).pack(side="left", expand=True, padx=5)
+        ttk.Button(frame_file, text="📂 Load Profile", command=self.load_profile_dialog).pack(side="left", expand=True, padx=5)
 
         self.render_coord_ui()
         self.update_action_combobox(None) 
@@ -381,11 +583,59 @@ class DynamicGroupBot:
 
     # ================= UI LOGIC =================
     
+    def save_error_screenshot(self, reason="Error"):
+        """Automatically take a screenshot when an error occurs or the bot gets stuck"""
+        if not self.var_save_error_screenshots.get():
+            return
+        try:
+            current_date = datetime.now().strftime("%Y-%m-%d")
+            err_date_dir = os.path.join(ERROR_DIR, current_date)
+            os.makedirs(err_date_dir, exist_ok=True)
+            
+            timestamp = datetime.now().strftime("%H%M%S")
+            filename = os.path.join(err_date_dir, f"{reason}_Area{self.current_area}_{timestamp}.png")
+            
+            monitor = self.vision.sct.monitors[0]
+            sct_img = self.vision.sct.grab(monitor)
+            mss.tools.to_png(sct_img.rgb, sct_img.size, output=filename)
+            
+            print("\n" + "="*50)
+            print(f"📸 [SCREENSHOT] Error evidence saved (Area {self.current_area}) at: {filename}")
+            print("="*50 + "\n")
+        except Exception as e:
+            print("\n" + "="*50)
+            print(f"[-] Error saving screenshot: {e}")
+            print("="*50 + "\n")
+
+    def auto_load_last_profile(self):
+        config_path = os.path.join(BASE_DIR, "config.json")
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    cfg = json.load(f)
+                    last_profile = cfg.get("last_profile")
+                    if last_profile and os.path.exists(last_profile):
+                        self.load_profile_from_path(last_profile)
+                        print(f"[*] Loaded recent profile: {last_profile}")
+            except Exception as e:
+                print(f"[-] Cannot auto-load profile: {e}")
+
+    def save_last_profile_config(self, path):
+        config_path = os.path.join(BASE_DIR, "config.json")
+        try:
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump({"last_profile": path}, f)
+        except: pass
+        
     def toggle_rescue_sub(self):
-        if self.var_enable_rescue.get():
-            self.chk_rescue_smart.config(state="normal")
-        else:
-            self.chk_rescue_smart.config(state="disabled")
+        state = "normal" if self.var_enable_rescue.get() else "disabled"
+        self.chk_rescue_smart.config(state=state)
+        self.chk_rescue_date.config(state=state)
+        self.entry_wait_emu.config(state=state)
+        self.entry_wait_cleanup.config(state=state)
+        self.entry_timeout.config(state=state)
+        try: self.update_counter_display()
+        except: pass
             
     def jump_to_step(self, event=None):
         if self.is_running:
@@ -399,7 +649,7 @@ class DynamicGroupBot:
                 if self.is_paused:
                     self.toggle_pause()
                     
-                print(f"[!] User Jumped to state: {self.current_step_idx}")
+                print(f"⏭️ [USER JUMP] Skipped to Step {self.current_step_idx}")
                 self.update_info_label(f"Jumped to Step {self.current_step_idx}")
                 self.update_listbox_selection(self.current_step_idx)
     
@@ -449,10 +699,11 @@ class DynamicGroupBot:
                 if "[START_AREA]" in text: self.listbox.itemconfig(self.last_highlighted_idx, bg="#d9f7be", fg="black") 
                 elif "[END_AREA]" in text: self.listbox.itemconfig(self.last_highlighted_idx, bg="#ffd6e7", fg="black") 
                 elif "[SEPARATOR]" in text: self.listbox.itemconfig(self.last_highlighted_idx, bg="#f0f0f0", fg="#888888") 
+                elif "[CLICK] -> Battle" in text: self.listbox.itemconfig(self.last_highlighted_idx, bg="#ffb6c1", fg="black") 
                 else: self.listbox.itemconfig(self.last_highlighted_idx, bg="white", fg="black") 
             
             if idx < self.listbox.size():
-                self.listbox.itemconfig(idx, bg="#87ceeb", fg="black")
+                self.listbox.itemconfig(idx, bg="#ffff00", fg="black")
                 self.listbox.see(idx)
                 self.last_highlighted_idx = idx
         except: pass
@@ -464,7 +715,8 @@ class DynamicGroupBot:
             text = self.listbox.get(i)
             if "] -> " in text:
                 all_targets.append(text.split("] -> ")[1].strip())
-        all_t = list(self.coords.keys()) + ["btn_normal.png", "btn_hard.png", "btn_lunatic.png", "btn_boss_lunatic.png", "Strict Tier 1", "Any Tier", "BATTLE_SCREEN", "PREPARE_SCREEN", "BUFF_SCREEN", "SELECT_PARTY_SCREEN", "END_BATTLE_SCREEN"]
+                
+        all_t = list(self.coords.keys()) + ["btn_challenge.png", "btn_normal.png", "btn_hard.png", "btn_lunatic.png", "btn_boss_lunatic.png", "Strict Tier 1", "Any Tier", "BATTLE_SCREEN", "PREPARE_SCREEN", "BUFF_SCREEN", "SELECT_PARTY_SCREEN", "END_BATTLE_SCREEN"]
         for i in range(1, 4):
             c_name = self.char_note_vars[str(i)].get().strip() if str(i) in self.char_note_vars else ""
             if c_name:
@@ -681,7 +933,7 @@ class DynamicGroupBot:
                     targets.append(f"{c_name} LastWord")
                 self.cbo_target.config(values=targets)
             elif "Party" in cat:
-                targets = ["Main Stage", "Party Button", "Party Back", "Battle", "Challenge"]
+                targets = ["Main Stage", "btn_challenge.png", "Party Button", "Party Back", "Battle", "Challenge"]
                 for i in range(1, self.num_chars_var.get() + 1):
                     c_name = self.char_note_vars[str(i)].get().strip() or f"Slot {i}"
                     targets.append(f"{c_name} Open List")
@@ -723,6 +975,7 @@ class DynamicGroupBot:
             if "[START_AREA]" in text: self.listbox.itemconfig(i, bg="#d9f7be", fg="black") 
             elif "[END_AREA]" in text: self.listbox.itemconfig(i, bg="#ffd6e7", fg="black") 
             elif "[SEPARATOR]" in text: self.listbox.itemconfig(i, bg="#f0f0f0", fg="#888888") 
+            elif "[CLICK] -> Battle" in text: self.listbox.itemconfig(i, bg="#ffb6c1", fg="black") 
             else: self.listbox.itemconfig(i, bg="white", fg="black") 
 
     def auto_format_list(self):
@@ -814,7 +1067,7 @@ class DynamicGroupBot:
             elif tgt in ["PREPARE_SCREEN", "SELECT_PARTY_SCREEN"]: cat_index = 1
             elif tgt == "BUFF_SCREEN": cat_index = 2
         elif act == "CLICK":
-            prepare_targets = ["Main Stage", "Party", "Battle", "Challenge", "Slot", "Open List", "Grid Pos"]
+            prepare_targets = ["Main Stage", "Party", "Battle", "Challenge", "Slot", "Open List", "Grid Pos", "btn_challenge.png"]
             if any(p in tgt for p in prepare_targets): cat_index = 1
             else: cat_index = 0
         self.cbo_category.current(cat_index)
@@ -866,7 +1119,13 @@ class DynamicGroupBot:
                 "fallback_action": self.cbo_fallback_action.get(),
                 "pick_agi_once": self.var_pick_agi_once.get(),
                 "enable_rescue": self.var_enable_rescue.get(),
-                "rescue_smart": self.var_rescue_smart.get()
+                "rescue_smart": self.var_rescue_smart.get(),
+                "save_error_screenshots": self.var_save_error_screenshots.get(),
+                "show_osd": self.var_show_osd.get(),
+                "rescue_date_changed": self.var_rescue_date_changed.get(),
+                "wait_emu": self.var_wait_emu.get(),
+                "wait_cleanup": self.var_wait_cleanup.get(),
+                "timeout_limit": self.var_timeout_limit.get()
             }
                     
             with open(path, 'w', encoding='utf-8') as f: 
@@ -876,48 +1135,68 @@ class DynamicGroupBot:
                     "char_notes": self.char_notes,
                     "options": options_data
                 }, f, indent=4, ensure_ascii=False)
+                
+            self.save_last_profile_config(path)
             messagebox.showinfo("Success", "Profile saved successfully!")
 
-    def load_profile(self):
+    def load_profile_dialog(self):
         path = filedialog.askopenfilename()
         if path:
+            self.load_profile_from_path(path)
+            self.save_last_profile_config(path)
+
+    def load_profile_from_path(self, path):
+        try:
             with open(path, 'r', encoding='utf-8') as f: 
                 data = json.load(f)
-                self.coords = data.get("coords", self.coords)
-                if "Open/Close Skill" in self.coords:
-                    self.coords["Open Skill"] = self.coords["Open/Close Skill"]
-                    self.coords["Close Skill"] = self.coords["Open/Close Skill"]
-                elif "Open Skill" in self.coords: 
-                    self.coords["Open/Close Skill"] = self.coords["Open Skill"]
-                    self.coords["Close Skill"] = self.coords["Open Skill"]
-                self.char_notes = data.get("char_notes", {"1": "", "2": "", "3": ""})
-                for i in range(1, 4):
-                    if str(i) in self.char_note_vars: self.char_note_vars[str(i)].set(self.char_notes.get(str(i), ""))
-                script_data = data.get("script", [])
+            self.coords = data.get("coords", self.coords)
+            if "Open/Close Skill" in self.coords:
+                self.coords["Open Skill"] = self.coords["Open/Close Skill"]
+                self.coords["Close Skill"] = self.coords["Open/Close Skill"]
+            elif "Open Skill" in self.coords: 
+                self.coords["Open/Close Skill"] = self.coords["Open Skill"]
+                self.coords["Close Skill"] = self.coords["Open Skill"]
+            self.char_notes = data.get("char_notes", {"1": "", "2": "", "3": ""})
+            for i in range(1, 4):
+                if str(i) in self.char_note_vars: self.char_note_vars[str(i)].set(self.char_notes.get(str(i), ""))
+            script_data = data.get("script", [])
+            
+            options_data = data.get("options", None)
+            if options_data:
+                self.run_mode.set(options_data.get("run_mode", "loop"))
+                self.loop_var.set(options_data.get("loop_var", 1))
+                self.hour_var.set(options_data.get("hour_var", 0))
+                self.min_var.set(options_data.get("min_var", 30))
+                self.var_disable_skill_agi.set(options_data.get("disable_skill_agi", False))
+                self.var_enable_fallback.set(options_data.get("enable_fallback", True))
+                self.cbo_fallback_action.set(options_data.get("fallback_action", "Focus Shot"))
+                self.var_pick_agi_once.set(options_data.get("pick_agi_once", True))
+                self.var_enable_rescue.set(options_data.get("enable_rescue", False))
+                self.var_rescue_smart.set(options_data.get("rescue_smart", False))
+                self.var_save_error_screenshots.set(options_data.get("save_error_screenshots", True))
+                self.var_show_osd.set(options_data.get("show_osd", True))
+                self.var_rescue_date_changed.set(options_data.get("rescue_date_changed", False))
+                self.var_wait_emu.set(options_data.get("wait_emu", 60))
+                self.var_wait_cleanup.set(options_data.get("wait_cleanup", 30))
+                self.var_timeout_limit.set(options_data.get("timeout_limit", 90))
                 
-                options_data = data.get("options", None)
-                if options_data:
-                    self.run_mode.set(options_data.get("run_mode", "loop"))
-                    self.loop_var.set(options_data.get("loop_var", 1))
-                    self.hour_var.set(options_data.get("hour_var", 0))
-                    self.min_var.set(options_data.get("min_var", 30))
-                    self.var_disable_skill_agi.set(options_data.get("disable_skill_agi", False))
-                    self.var_enable_fallback.set(options_data.get("enable_fallback", True))
-                    self.cbo_fallback_action.set(options_data.get("fallback_action", "Focus Shot"))
-                    self.var_pick_agi_once.set(options_data.get("pick_agi_once", True))
-                    self.var_enable_rescue.set(options_data.get("enable_rescue", False))
-                    self.var_rescue_smart.set(options_data.get("rescue_smart", False))
-                    
-                    self.update_run_mode()
-                    self.toggle_rescue_sub()
-                
+                self.update_run_mode()
+                self.toggle_rescue_sub()
+                self.sync_logging_state()
+            
             self.render_coord_ui() 
             self.listbox.delete(0, tk.END)
             for act in script_data:
                 act = act.replace("[CLICK_IMAGE]", "[CHOOSE_DIFFICULTY]")
                 act = act.replace("[SKIP_ANIM]", "[CLICK_SKIP_CORNER]")
+                
+                if "[WAIT_FOR_SCREEN] -> VICTORY_SCREEN" in act:
+                    act = act.replace("VICTORY_SCREEN", "END_BATTLE_SCREEN")
+                
                 self.listbox.insert(tk.END, act)
             self.auto_format_list()
+        except Exception as e:
+            print(f"[-] Error loading profile file: {e}")
 
     def check_pause(self):
         pause_duration = 0
@@ -968,102 +1247,176 @@ class DynamicGroupBot:
                 return i
         return -1
 
-    def click_image_on_screen(self, img_name, max_retries=5, delay=2.0):
+    def click_image_on_screen(self, img_name, max_retries=5, delay=2.0, custom_conf=0.75):
         """Find image on screen and click it"""
         for _ in range(max_retries):
-            pos = self.vision.get_pos(img_name, conf=0.85)
+            pos = self.vision.get_pos(img_name, conf=custom_conf)
             if pos:
+                self.root.after(0, lambda n=img_name, px=pos[0], py=pos[1]: self.show_osd(f"📸 Dùng ảnh: {n}", px, py))
                 pyautogui.click(x=pos[0], y=pos[1])
                 time.sleep(delay)
                 return True
             time.sleep(1.0)
         return False
 
+    def rescue_date_changed(self):
+        """Kịch bản đặc biệt: Xử lý khi qua ngày mới (Lặp 3 lần khởi động lại)"""
+        self.save_error_screenshot("DateChanged")
+        print("\n" + "="*50)
+        print(f"⚠️ [DATE CHANGED] Phát hiện qua ngày mới ở Area {self.current_area}! Bắt đầu chuỗi reset 3 lần...")
+        print("="*50)
+        self.update_info_label("Date Changed! Restarting 3 times...")
+        
+        wait_emu = self.var_wait_emu.get()
+        wait_cleanup = self.var_wait_cleanup.get()
+        
+        # --- THỰC HIỆN LẶP 3 LẦN THOÁT - VÀO LẠI ---
+        for i in range(3):
+            if not self.is_running: return
+            print(f"▶ [DATE CHANGED] Reset lần {i+1}/3...")
+            self.update_info_label(f"Date Changed Reset ({i+1}/3)...")
+            
+            # 1. Tắt giả lập
+            self.click_coord("Close Emulator", delay=2.0)
+            if not self.click_image_on_screen("btn_close_emu_confirm.png", max_retries=3, delay=3.0, custom_conf=0.7):
+                self.click_coord("Confirm Close Emu", delay=5.0)
+            
+            # 2. Ẩn cửa sổ và mở lại bằng icon
+            pyautogui.keyDown('win')
+            time.sleep(0.1)
+            pyautogui.press('d')
+            time.sleep(0.1)
+            pyautogui.keyUp('win')
+            time.sleep(1.5)
+            
+            coord_icon = self.coords.get("Game Desktop Icon")
+            if coord_icon and coord_icon["x"] > 0:
+                pyautogui.moveTo(coord_icon["x"], coord_icon["y"])
+                pyautogui.doubleClick()
+                
+            self.wait_with_jump(wait_emu) 
+            
+            # 3. Phóng to toàn màn hình
+            if not self.click_image_on_screen("btn_fullscreen.png", max_retries=5, delay=2.0, custom_conf=0.8):
+                self.click_coord("Full Screen", delay=2.0)
+            
+            # 4. Ấn vào giữa màn hình
+            for _ in range(2): 
+                if not self.is_running: return
+                self.click_coord("Center Screen", delay=1.0)
+                
+            # 5. Chờ thời gian dọn dẹp rồi thoát liền
+            print(f"▶ [DATE CHANGED] Chờ {wait_cleanup} giây dọn rác điểm danh...")
+            self.wait_with_jump(wait_cleanup)
+            
+        # --- HOÀN TẤT 3 LẦN LẶP, BẮT ĐẦU VÀO GAME LẠI ---
+        print("▶ [DATE CHANGED] Hoàn tất 3 lần reset. Vào game để tiếp tục...")
+        self.update_info_label("Reset done. Resuming Smart Jump...")
+        
+        self.click_coord("Moriya Unmapped", delay=5.0)
+        self.click_coord("Main Stage", delay=2.0)
+        self.click_coord("Challenge", delay=8.0) 
+
+        # Xử lý Smart Jump logic
+        if self.var_rescue_smart.get():
+            print(f"⏭️ [SMART JUMP] Đã bật Smart Jump, quay về đầu Area {self.current_area}...")
+            self.update_info_label(f"Jumping to Start of Area {self.current_area}...")
+            idx = self.find_area_start_index(self.current_area)
+            if idx != -1:
+                self.jump_area_flag = idx
+            else:
+                self.reset_run_flag = True
+        else:
+            print("⚠️ [DATE CHANGED] Smart Jump đang tắt, tiến hành Give Up Run...")
+            self.perform_basic_rescue()
+
+        self.has_entered_battle = False
+        self.redraws_this_run = 0
+
     def rescue_frozen_emulator(self):
+        self.save_error_screenshot("Rescue")
+        
         if not hasattr(self, 'consecutive_rescues'): self.consecutive_rescues = 0
         self.consecutive_rescues += 1
         
-        print(f"[*] Starting Rescue Protocol (Attempt {self.consecutive_rescues}/3)...")
+        if not hasattr(self, 'total_rescues'): self.total_rescues = 0
+        self.total_rescues += 1
+        self.root.after(0, self.update_counter_display)
+        
+        print("\n" + "="*50)
+        print(f"⚠️ [RESCUE] Starting Rescue Protocol (Attempt {self.consecutive_rescues}/3) at Area {self.current_area}...")
+        print("="*50)
         self.update_info_label(f"EMULATOR FROZEN! Restarting ({self.consecutive_rescues}/3)...")
         
-        # 1. Close App bằng Tọa độ
         coord_close = self.coords.get("Close Emulator")
         if not coord_close or coord_close["x"] == 0:
-            print("[-] LỖI NGHIÊM TRỌNG: Bạn CHƯA lấy tọa độ cho nút 'Close Emulator' ở Tab 1!")
+            print("❌ ERROR: 'Close Emulator' coordinates not set!")
         
         self.click_coord("Close Emulator", delay=2.0)
         
-        # 2. Confirm Close App bằng Hình ảnh
-        print("[*] Đang tìm ảnh nút Xác nhận thoát...")
-        if not self.click_image_on_screen("btn_close_emu_confirm.png", max_retries=5, delay=5.0):
-            print("[-] Không tìm thấy ảnh Xác nhận thoát! Dùng tọa độ dự phòng...")
-            self.click_coord("Confirm Close Emu", delay=5.0)
+        print("▶ Searching for Exit Confirmation image (btn_close_emu_confirm.png)...")
+
         
-        # 3. Minimize apps
-        print("[*] Minimizing apps...")
-        pyautogui.hotkey('win', 'd')
-        time.sleep(1.0)
+        print("▶ Closing all windows (Win + D)...")
+        pyautogui.keyDown('win')
+        time.sleep(0.1)
+        pyautogui.press('d')
+        time.sleep(0.1)
+        pyautogui.keyUp('win')
+        time.sleep(1.5)
         
-        # 4. Double click Game Icon
         coord_icon = self.coords.get("Game Desktop Icon")
         if coord_icon and coord_icon["x"] > 0:
+            print("▶ Reopening emulator...")
             pyautogui.moveTo(coord_icon["x"], coord_icon["y"])
             pyautogui.doubleClick()
         else:
-            print("[-] LỖI: Chưa có tọa độ Game Desktop Icon!")
+            print("❌ ERROR: Game Desktop Icon coordinates not set!")
             
-        self.wait_with_jump(60.0) 
+        wait_emu = self.var_wait_emu.get()
+        wait_cleanup = self.var_wait_cleanup.get()
             
-        # 5. Phóng to Full Screen (CHỈ DÙNG NHẬN DIỆN ẢNH)
-        print("[*] Maximizing Full Screen...")
-        if not self.click_image_on_screen("btn_fullscreen.png", max_retries=5, delay=2.0):
-            print("[-] Không tìm thấy ảnh btn_fullscreen.png! Thử click bằng tọa độ dự phòng...")
-            self.click_coord("Full Screen", delay=2.0)
+        self.wait_with_jump(wait_emu) 
+            
+        print("▶ Searching for Full Screen image (btn_fullscreen.png)...")
+
         
-        # 6. Click Center Screen x2
         for _ in range(2): 
             if not self.is_running: return
             self.click_coord("Center Screen", delay=1.0)
             
-        self.wait_with_jump(30.0) 
+        self.wait_with_jump(wait_cleanup) 
             
-        # 7. Navigate to mode
-        self.click_coord("Enter Game Mode", delay=5.0)
+        self.click_coord("Moriya Unmapped", delay=5.0)
         self.click_coord("Main Stage", delay=2.0)
         self.click_coord("Challenge", delay=6.0)
 
-        # ========================================================
-        # NẾU KẸT 3 LẦN THÌ ÉP GIVE UP BỎ RUN
-        # ========================================================
         if self.consecutive_rescues >= 3:
-            print("[!] Kẹt 3 lần liên tiếp không qua trận! Bỏ qua vòng chạy này...")
+            print("❌ [FAILED] Stuck 3 consecutive times! Forcing Give Up...")
             self.update_info_label("Stuck 3 times! Forcing Give Up...")
             self.perform_basic_rescue() 
             self.consecutive_rescues = 0 
             return
-        # ========================================================
 
-        # 8. Check states
         is_buff = self.vision.get_pos("btn_redraw.png") or self.vision.get_pos("btn_redraw_dark.png")
         
         if self.var_rescue_smart.get():
-            # SMART JUMP
             if is_buff:
                 if self.has_entered_battle:
-                    print("[*] Smart Jump: Post-Battle Buff Screen -> Jumping to Next Area")
+                    print("⏭️ [SMART JUMP] Found Buff after Battle -> Jumping to Next Area!")
                     self.update_info_label("Jumping to Next Area...")
                     next_area = self.current_area + 1
                     idx = self.find_area_start_index(next_area)
                     self.jump_area_flag = idx if idx != -1 else -1
                     if idx == -1: self.reset_run_flag = True
                 else:
-                    print("[*] Smart Jump: Pre-Battle Buff Screen -> Restarting Current Area")
+                    print("🔄 [SMART JUMP] Found Buff before Battle -> Restarting Current Area!")
                     self.update_info_label("Restarting Current Area...")
                     idx = self.find_area_start_index(self.current_area)
                     self.jump_area_flag = idx if idx != -1 else -1
                     if idx == -1: self.reset_run_flag = True
             else:
-                print("[*] Smart Jump: No Buff Screen -> Retrying Difficulty Selection")
+                print("🔄 [SMART JUMP] Not in lobby -> Retrying Difficulty Selection...")
                 self.update_info_label("Retrying Difficulty Selection...")
                 curr_idx = self.find_area_start_index(self.current_area)
                 if curr_idx != -1:
@@ -1072,42 +1425,46 @@ class DynamicGroupBot:
                 else:
                     self.reset_run_flag = True
         else:
-            # BASIC RESCUE
             self.perform_basic_rescue()
 
-        # RESET FLAGS TO PREVENT BUG
         self.has_entered_battle = False
         self.redraws_this_run = 0
 
     def perform_basic_rescue(self):
-        print("[*] Basic Rescue Mode...")
+        print("▶ Executing Basic Rescue Protocol...")
         self.update_info_label("Executing Basic Rescue...")
         
-        # 1. Kiểm tra màn hình Buff, nếu có thì ấn Random Buff và Confirm
+        self.party_setup_done_in_area1 = False
+        
         is_buff = self.vision.get_pos("btn_redraw.png") or self.vision.get_pos("btn_redraw_dark.png")
         if is_buff:
-            print("[*] Found Buff Screen -> Clicking Random Buff")
+            print("▶ Found Buff screen, clicking Random Buff...")
             self.click_coord("Random Buff", delay=1.0)
             self.click_auto_confirm(max_wait=3, target_img="btn_confirm.png")
             self.wait_with_jump(2.0)
             
-        # 2. Lùi ra và Give up
         self.click_coord("Party Back", delay=2.0)
         self.click_coord("Give Up Run", delay=2.0)
         self.click_auto_confirm(max_wait=4, target_img="btn_confirm.png")
         self.wait_with_jump(2.0)
         
-        # 3. Bấm Skip Corner 5 lần
         for _ in range(5): 
             self.click_coord("Skip Corner", 0.5)
             
-        # 4. Chờ 5s và bắt đầu run hoàn toàn mới
         self.wait_with_jump(5.0)
         self.reset_run_flag = True
         
-        # 5. Xóa trí nhớ để tránh lỗi nhảy cóc ở lần sau
         self.has_entered_battle = False
         self.redraws_this_run = 0
+
+    def update_counter_display(self):
+        mode = self.run_mode.get()
+        txt = f"Success: {self.successful_runs} | Failed: {self.failed_runs} | Total: {self.completed_loops}"
+        if self.var_enable_rescue.get():
+            txt += f" | Rescues: {self.total_rescues}"
+        if mode == "loop":
+            txt += f" / {self.loop_var.get()}"
+        self.lbl_counters.config(text=txt)
 
     def start_bot(self):
         if not self.is_running:
@@ -1116,22 +1473,27 @@ class DynamicGroupBot:
             self.lbl_status.config(text="Status: RUNNING", foreground="green")
             self.notebook.select(1) 
             self.btn_jump.pack(fill="x", expand=True, ipady=5) 
-            self.root.iconify()
+            
+            self.root.iconify()  # Ẩn ứng dụng xuống taskbar
             self.root.update() 
             
-            # Reset counters at the start of a fresh session
             self.completed_loops = 0
             self.successful_runs = 0
             self.failed_runs = 0
+            self.total_rescues = 0
             self.current_area = 1
+            
             self.party_setup_done_in_area1 = False
+            self.update_counter_display()
             
             self.update_info_label("Starting...")
             
             self.main_script = []
             for i in range(self.listbox.size()):
                 parts = self.listbox.get(i).split("] -> ")
-                self.main_script.append({"action": parts[0].replace("[", ""), "target": parts[1] if len(parts)>1 else "None"})
+                action_part = parts[0].replace("[", "").strip()
+                target_part = parts[1].strip() if len(parts) > 1 else "None"
+                self.main_script.append({"action": action_part, "target": target_part})
                 
             threading.Thread(target=self.bot_loop, daemon=True).start()
 
@@ -1141,6 +1503,12 @@ class DynamicGroupBot:
             self.is_paused = False
             self.lbl_status.config(text="Status: STOPPED", foreground="red")
             self.btn_jump.pack_forget() 
+            
+            self.update_counter_display()
+            self.update_info_label("Ready")
+            
+            self.hud_win.withdraw()
+            
             self.root.deiconify()
             self.root.state('normal')
             self.root.update()
@@ -1152,6 +1520,9 @@ class DynamicGroupBot:
                 self.lbl_status.config(text="Status: PAUSED", foreground="orange")
                 self.update_info_label("Bot is paused. Press Hotkey to resume.")
                 self.notebook.select(1) 
+                
+                self.hud_win.withdraw()
+                
                 self.root.deiconify()   
                 self.root.state('normal')
                 self.root.update()
@@ -1159,7 +1530,8 @@ class DynamicGroupBot:
                 self.lbl_status.config(text="Status: RUNNING", foreground="green")
                 self.update_info_label("Bot resumed.")
                 self.notebook.select(1) 
-                self.root.iconify()     
+                
+                self.root.iconify() # Ẩn ứng dụng xuống taskbar
                 self.root.update()
 
     def update_info_label(self, msg):
@@ -1170,6 +1542,9 @@ class DynamicGroupBot:
         if getattr(self, 'jump_flag', False) or getattr(self, 'jump_area_flag', -1) != -1: return
         coord = self.coords.get(key_name)
         if coord and coord["x"] > 0:
+            
+            self.root.after(0, lambda k=key_name, cx=coord["x"], cy=coord["y"]: self.show_osd(f"🖱️ Click: {k}", cx, cy))
+            
             pyautogui.moveTo(x=coord["x"], y=coord["y"], duration=0.15)
             time.sleep(0.1)
             pyautogui.click(clicks=1)
@@ -1179,7 +1554,9 @@ class DynamicGroupBot:
 
     def handle_disconnect(self):
         self.check_pause()
-        print("[!] Network Error Detected! Reconnecting...")
+        print("\n" + "="*50)
+        print("⚠️ [DISCONNECT] Network Error Detected! Reconnecting...")
+        print("="*50 + "\n")
         self.update_info_label("Network Error! Reconnecting...")
         pos = self.vision.get_pos("btn_confirm.png")
         if pos: pyautogui.click(x=pos[0], y=pos[1])
@@ -1190,7 +1567,7 @@ class DynamicGroupBot:
         self.update_info_label(f"Waiting for: {target_screen}...")
         start_wait = time.time()
         timeout_start = time.time()
-        timeout_limit = 90
+        timeout_limit = self.var_timeout_limit.get() # Get from UI
         
         while self.is_running:
             p_time = self.check_pause()
@@ -1200,13 +1577,23 @@ class DynamicGroupBot:
                 
             if getattr(self, 'jump_flag', False) or getattr(self, 'jump_area_flag', -1) != -1: return
 
+            # --- KIỂM TRA THÔNG BÁO QUA NGÀY LIÊN TỤC ---
+            if self.var_enable_rescue.get() and self.var_rescue_date_changed.get():
+                pos_date = self.vision.get_pos("msg_date_changed.png", conf=0.75)
+                if pos_date:
+                    print("❌ [DATE CHANGED] Nhận diện bảng thông báo qua ngày mới!")
+                    self.save_error_screenshot("DateChanged")
+                    self.rescue_date_changed()
+                    return
+
             if self.var_enable_rescue.get() and (time.time() - timeout_start > timeout_limit):
                 self.rescue_frozen_emulator()
                 return
 
-            pos_fail = self.vision.get_pos("btn_game_over.png", conf=0.75, gray=True)
+            pos_fail = self.vision.get_pos("game_over.png", conf=0.75, gray=True)
             if pos_fail:
-                print("[!] GAME OVER DETECTED! Resetting Run...")
+                self.save_error_screenshot("GameOver")
+                print("❌ [FAILED] GAME OVER DETECTED! Resetting Run...")
                 self.update_info_label("Game Over detected. Skipping and resetting...")
                 for _ in range(5):
                     self.click_coord("Skip Corner", 0.5)
@@ -1221,14 +1608,12 @@ class DynamicGroupBot:
             if target_screen == "SELECT_PARTY_SCREEN":
                 pos = self.vision.get_pos("btn_cancel.png")
                 if pos:
-                    print("[+] Party Selection screen detected!")
                     self.wait_with_jump(0.5)
                     return
             
             elif target_screen == "END_BATTLE_SCREEN":
                 pos = self.vision.get_pos("btn_next.png")
                 if pos:
-                    print("[+] Battle End screen detected!")
                     self.consecutive_rescues = 0
                     pyautogui.click(x=pos[0], y=pos[1])
                     self.wait_with_jump(1.0)
@@ -1237,7 +1622,7 @@ class DynamicGroupBot:
                 
                 if self.var_enable_fallback.get() and self.vision.check_state() == "IN_BATTLE":
                     if time.time() - start_wait > 8:
-                        print("[!] Stuck in Battle! Executing Fallback...")
+                        print("⚠️ [STUCK] Stuck in Battle! Activating Fallback...")
                         self.update_info_label("Stuck in Battle! Using Fallback...")
                         action = self.cbo_fallback_action.get()
                         for _ in range(3): 
@@ -1280,6 +1665,7 @@ class DynamicGroupBot:
         return False
 
     def execute_buff_selection(self, mode="Strict Tier 1"):
+        print(f"🔍 [SCAN] Scanning Buff (Area {self.current_area})...")
         self.update_info_label(f"Scanning Buff (Area {self.current_area})...")
         
         folder = os.path.join(IMAGE_DIR, f"area_{self.current_area}")
@@ -1292,6 +1678,8 @@ class DynamicGroupBot:
         all_tier_images = sorted(all_tier_images, key=lambda x: 0 if "buff_agi_up" in os.path.basename(x).lower() else 1)
             
         max_redraws = 3
+
+        self.wait_with_jump(1.0)
 
         while self.is_running:
             self.check_pause()
@@ -1312,12 +1700,13 @@ class DynamicGroupBot:
 
                 pos = self.vision.get_pos_absolute(img_path)
                 if pos: 
+                    self.root.after(0, lambda p=img_path, pt=pos: self.show_osd(f"📸 Tìm thẻ: {os.path.basename(p)}", pt[0], pt[1]))
                     pyautogui.click(x=pos[0], y=pos[1])
-                    self.wait_with_jump(0.3)
+                    self.wait_with_jump(0.5)
                     buff_clicked = True
                     
                     if is_agi:
-                        print("[*] Picked Agi Up Sticker from Area folder!")
+                        print(f"🎁 [BUFF] Picked up Agi Up card!")
                         self.has_picked_agi_up = True
                         if self.var_disable_skill_agi.get():
                             self.disable_skills_flag = True
@@ -1325,9 +1714,18 @@ class DynamicGroupBot:
                     break 
             
             if buff_clicked:
-                if self.click_auto_confirm(max_wait=3, target_img="btn_confirm.png"):
+                if self.current_area == 1:
+                    if self.click_auto_confirm(max_wait=3, target_img="btn_confirm.png"):
+                        self.wait_with_jump(1)
+                        return 
+                    else:
+                        print("⚠️ [BUFF] Card clicked but Confirm button missing (Area 1). Retrying...")
+                        self.click_coord("Skip Corner", 0.5) 
+                        continue 
+                else:
+                    self.click_auto_confirm(max_wait=3, target_img="btn_confirm.png")
                     self.wait_with_jump(1)
-                return
+                    return
             
             if self.redraws_this_run < max_redraws:
                 redraw_pos = self.vision.get_pos("btn_redraw.png")
@@ -1340,11 +1738,21 @@ class DynamicGroupBot:
                 else:
                     self.redraws_this_run = max_redraws 
             else:
-                print("[-] No buffs found in any tier after max redraws. Clicking Random Buff.")
+                print("⚠️ [BUFF] Good buff not found, taking Random!")
                 self.click_coord("Random Buff", 1)
-                if self.click_auto_confirm(max_wait=3, target_img="btn_confirm.png"):
+                
+                if self.current_area == 1:
+                    if self.click_auto_confirm(max_wait=3, target_img="btn_confirm.png"):
+                        self.wait_with_jump(1)
+                        return
+                    else:
+                        print("⚠️ [BUFF] Random clicked but Confirm button missing (Area 1). Retrying...")
+                        self.click_coord("Skip Corner", 0.5)
+                        continue
+                else:
+                    self.click_auto_confirm(max_wait=3, target_img="btn_confirm.png")
                     self.wait_with_jump(1)
-                return
+                    return
 
     def bot_loop(self):
         start_time_limit = time.time()
@@ -1362,7 +1770,7 @@ class DynamicGroupBot:
             self.has_entered_battle = False 
             self.redraws_this_run = 0 
             self.consecutive_rescues = 0
-            self.party_setup_done_in_area1 = False
+            
             while self.current_step_idx < len(self.main_script) and self.is_running:
                 self.check_pause()
                 
@@ -1381,43 +1789,61 @@ class DynamicGroupBot:
                 
                 cmd, target = act["action"], act["target"]
                 
-                # --- AUTO-SKIP PARTY SETUP IN AREA 1 AFTER FIRST TIME ---
                 if cmd == "CLICK" and target == "Party Button" and self.current_area == 1 and getattr(self, 'party_setup_done_in_area1', False):
-                    print("[*] Party setup already done. Skipping directly to Battle...")
+                    print("⏭️ [SMART JUMP] Party setup done. Waiting 2.5s then jumping to Battle...")
+                    self.wait_with_jump(2.5) 
                     battle_idx = self.get_battle_step_area_1()
                     if battle_idx != -1:
                         self.jump_area_flag = battle_idx
                         continue
 
-                # Mark party setup as done when leaving party screen in Area 1
                 if cmd == "CLICK" and target == "Party Back" and self.current_area == 1:
                     self.party_setup_done_in_area1 = True
                 
                 if cmd != "SEPARATOR":
-                    print(f"Executing step {self.current_step_idx}: {cmd} -> {target}")
+                    # --- GỬI TEXT ĐẾN HUD ---
+                    step_msg = f"▶ STEP {self.current_step_idx}: {cmd} -> {target}"
+                    print(step_msg)
+                    self.root.after(0, lambda m=step_msg: self.update_hud(m))
                     
                     if cmd == "WAIT": 
                         self.wait_with_jump(float(target))
                     elif cmd == "CLICK": 
-                        mapped_target = "Open Skill" if target in ["Close Skill", "Open/Close Skill"] else target
-                        real_target = self.get_real_key(mapped_target)
-                        
-                        is_combat_skill = any(k in real_target for k in ["Skill", "Spell", "LastWord", "Open Skill", "Close Skill", "Open Spell"])
-                        
-                        if getattr(self, 'disable_skills_flag', False) and is_combat_skill:
-                            print(f"[*] Skipping {target} (Agi Up is active - Shot Only Mode)")
-                        else:
-                            self.click_coord(real_target)
-                            if is_combat_skill and "Skill" in real_target and "Open" not in real_target and "Close" not in real_target and not getattr(self, 'jump_flag', False):
-                                print(f"[*] Auto Confirm after using: {target}")
+                        if target == "btn_challenge.png":
+                            actual_img_name = "btn_challenge.png"
+                            for _ in range(5): 
+                                if not self.is_running or self.reset_run_flag or getattr(self, 'jump_flag', False) or getattr(self, 'jump_area_flag', -1) != -1: break
+                                pos = self.vision.get_brightest_pos(actual_img_name)
+                                if pos:
+                                    self.root.after(0, lambda t=target, pt=pos: self.show_osd(f"📸 Click: {t}", pt[0], pt[1]))
+                                    pyautogui.click(x=pos[0], y=pos[1])
+                                    self.wait_with_jump(1.0)
+                                    break
                                 self.wait_with_jump(1.0)
-                                self.click_auto_confirm(max_wait=4, target_img="btn_confirm.png")
+                        else:
+                            mapped_target = "Open Skill" if target in ["Close Skill", "Open/Close Skill"] else target
+                            real_target = self.get_real_key(mapped_target)
+                            
+                            is_combat_skill = any(k in real_target for k in ["Skill", "Spell", "LastWord", "Open Skill", "Close Skill", "Open Spell"])
+                            
+                            if getattr(self, 'disable_skills_flag', False) and is_combat_skill:
+                                pass
+                            else:
+                                self.click_coord(real_target)
+                                if is_combat_skill and "Skill" in real_target and "Open" not in real_target and "Close" not in real_target and not getattr(self, 'jump_flag', False):
+                                    self.wait_with_jump(1.0)
+                                    self.click_auto_confirm(max_wait=4, target_img="btn_confirm.png")
                             
                     elif cmd == "CHOOSE_DIFFICULTY": 
+                        actual_img_name = target if target.endswith(".png") else f"btn_{target}.png"
+                        
                         for _ in range(5): 
                             if not self.is_running or self.reset_run_flag or getattr(self, 'jump_flag', False) or getattr(self, 'jump_area_flag', -1) != -1: break
-                            pos = self.vision.get_pos(target)
+                            
+                            pos = self.vision.get_brightest_pos(actual_img_name)
+                            
                             if pos:
+                                self.root.after(0, lambda t=target, pt=pos: self.show_osd(f"📸 Choose: {t.upper()}", pt[0], pt[1]))
                                 pyautogui.click(x=pos[0], y=pos[1])
                                 self.wait_with_jump(1)
                                 break
@@ -1454,13 +1880,16 @@ class DynamicGroupBot:
                     self.jump_flag = False
 
             if self.is_running:
-                # Update Success/Failed Counters
                 if self.reset_run_flag:
                     self.failed_runs += 1
                 else:
                     self.successful_runs += 1
                     
+                self.party_setup_done_in_area1 = False
                 self.completed_loops = self.successful_runs + self.failed_runs
+                
+                print(f"✅ [LOOP COMPLETE] Success: {self.successful_runs} | Failed: {self.failed_runs} | Total: {self.completed_loops}")
+                self.root.after(0, self.update_counter_display)
                 
                 status_text = f"Success: {self.successful_runs} | Failed: {self.failed_runs} | Total: {self.completed_loops}"
                 if run_mode == "loop":
@@ -1475,12 +1904,11 @@ class DynamicGroupBot:
                 else:
                     self.update_info_label(status_text)
                     
-                # Break condition for "Loop" mode
                 if run_mode == "loop" and self.completed_loops >= self.loop_var.get():
                     break
                 
         if self.is_running:
-            print("\n[+] Farming Complete!")
+            print("\n✅ [FINISH] Farming Complete!")
             self.root.after(0, self.force_stop)
 
 if __name__ == "__main__":
