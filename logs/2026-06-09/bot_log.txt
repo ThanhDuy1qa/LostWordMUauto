@@ -1,0 +1,120 @@
+[00:00:00] ▶ STEP 4: WAIT -> 5
+[00:00:05] ▶ STEP 5: SELECT_BUFF -> Strict Tier 1
+[00:00:05] 🔍 [SCAN] Scanning Buff (Area 1)...
+[00:00:10] ▶ STEP 6: CHOOSE_DIFFICULTY -> hard
+[00:00:12] ▶ STEP 7: CLICK -> Challenge
+[00:00:13] ▶ STEP 8: WAIT_FOR_SCREEN -> PREPARE_SCREEN
+[00:00:21] ▶ STEP 9: CLICK -> Party Button
+[00:00:22] ▶ STEP 10: CLICK -> L80 Reimu Open List
+[00:00:22] ▶ STEP 11: WAIT_FOR_SCREEN -> SELECT_PARTY_SCREEN
+[00:00:24] ▶ STEP 12: CLICK -> L80 Reimu Selected Grid Pos
+[00:00:25] ▶ STEP 13: CONFIRM_PARTY_SLOT -> None
+[00:00:27] ▶ STEP 14: CLICK -> Cz1# Marisa Open List
+[00:00:28] ▶ STEP 15: WAIT_FOR_SCREEN -> SELECT_PARTY_SCREEN
+[00:00:30] ▶ STEP 16: CLICK -> Cz1# Marisa Selected Grid Pos
+[00:00:31] ▶ STEP 17: CONFIRM_PARTY_SLOT -> None
+[00:00:33] ▶ STEP 18: CLICK -> Party Back
+[00:00:34] ▶ STEP 19: WAIT_FOR_SCREEN -> PREPARE_SCREEN
+[00:00:36] ▶ STEP 20: CLICK -> Battle
+[00:00:37] ▶ STEP 21: WAIT_FOR_SCREEN -> BATTLE_SCREEN
+[00:00:48] ▶ STEP 22: CLICK -> Open Skill
+[00:00:49] ▶ STEP 23: CLICK -> L80 Reimu Skill 1
+[00:00:53] ▶ STEP 24: CLICK -> L80 Reimu Skill 3
+[00:00:56] ▶ STEP 25: CLICK -> Cz1# Marisa Skill 3
+[00:00:59] ▶ STEP 26: CLICK -> Close Skill
+[00:01:00] ▶ STEP 27: BOOST -> 3
+[00:01:03] ▶ STEP 28: CLICK -> Open Spell
+[00:01:03] ▶ STEP 29: CLICK -> L80 Reimu Spell 2
+[00:01:04] ▶ STEP 30: BOOST -> 1
+[00:01:05] ▶ STEP 31: CLICK -> Cz1# Marisa Spread Shot
+[00:01:06] ▶ STEP 32: WAIT_FOR_SCREEN -> BATTLE_SCREEN
+[00:01:15] ▶ STEP 33: CLICK -> Open Skill
+[00:01:16] ▶ STEP 34: CLICK -> Cz1# Marisa Skill 1
+[00:01:19] ▶ STEP 35: CLICK -> Cz1# Marisa Skill 2
+[00:01:23] ▶ STEP 36: CLICK -> L80 Reimu Skill 1
+[00:01:26] ▶ STEP 37: CLICK -> Close Skill
+[00:01:27] ▶ STEP 38: BOOST -> 1
+[00:01:28] ▶ STEP 39: CLICK -> Open Spell
+[00:01:29] ▶ STEP 40: CLICK -> L80 Reimu Spell 1
+[00:01:30] ▶ STEP 41: BOOST -> 3
+[00:01:32] ▶ STEP 42: CLICK -> Open Spell
+[00:01:33] ▶ STEP 43: CLICK -> Cz1# Marisa Spell 2
+[00:01:34] ▶ STEP 44: WAIT_FOR_SCREEN -> BATTLE_SCREEN
+[00:01:46] ▶ STEP 45: CLICK -> Open Skill
+[00:01:47] ▶ STEP 46: CLICK -> L80 Reimu Skill 1
+[00:01:50] ▶ STEP 47: CLICK -> L80 Reimu Skill 2
+[00:01:53] ▶ STEP 48: CLICK -> Close Skill
+[00:01:54] ▶ STEP 49: BOOST -> 3
+[00:01:56] ▶ STEP 50: CLICK -> Open Spell
+[00:01:57] ▶ STEP 51: CLICK -> L80 Reimu Spell 3
+[00:01:58] ▶ STEP 52: CLICK -> Open Spell
+[00:01:59] ▶ STEP 53: BOOST -> 3
+[00:02:01] ▶ STEP 54: CLICK -> Cz1# Marisa Spell 4
+[00:02:02] ▶ STEP 55: WAIT_FOR_SCREEN -> END_BATTLE_SCREEN
+[00:02:22] ▶ STEP 56: END_AREA -> None
+[00:02:22] ▶ STEP 58: START_AREA -> 2
+[00:02:22] ▶ STEP 59: CLICK_SKIP_CORNER -> 1
+[00:02:23] ▶ STEP 60: WAIT_FOR_SCREEN -> BUFF_SCREEN
+[00:02:25] ▶ STEP 61: SELECT_BUFF -> Strict Tier 1
+[00:02:25] 🔍 [SCAN] Scanning Buff (Area 2)...
+[00:02:30] ▶ STEP 62: CLICK_SKIP_CORNER -> 2
+[00:02:33] ▶ STEP 63: SELECT_BUFF -> Any Tier
+[00:02:33] 🔍 [SCAN] Scanning Buff (Area 2)...
+[00:02:37] ▶ STEP 64: CLICK_SKIP_CORNER -> 2
+[00:02:40] ▶ STEP 65: CHOOSE_DIFFICULTY -> hard
+[00:02:41] ▶ STEP 66: CLICK -> Challenge
+[00:02:42] ▶ STEP 67: WAIT_FOR_SCREEN -> PREPARE_SCREEN
+[00:02:48] ▶ STEP 68: CLICK -> Battle
+[00:02:49] ▶ STEP 69: WAIT_FOR_SCREEN -> BATTLE_SCREEN
+[00:03:01] ▶ STEP 70: CLICK -> Open Skill
+[00:03:02] ▶ STEP 71: CLICK -> L80 Reimu Skill 1
+[00:03:05] ▶ STEP 72: CLICK -> L80 Reimu Skill 3
+[00:03:09] ▶ STEP 73: CLICK -> Cz1# Marisa Skill 3
+[00:03:12] ▶ STEP 74: CLICK -> Close Skill
+[00:03:13] ▶ STEP 75: BOOST -> 3
+[00:03:15] ▶ STEP 76: CLICK -> Open Spell
+[00:03:16] ▶ STEP 77: CLICK -> L80 Reimu Spell 4
+[00:03:17] ▶ STEP 78: BOOST -> 1
+[00:03:18] ▶ STEP 79: CLICK -> Cz1# Marisa Spread Shot
+[00:03:19] ▶ STEP 80: WAIT_FOR_SCREEN -> BATTLE_SCREEN
+[00:03:28] ▶ STEP 81: CLICK -> Open Skill
+[00:03:29] ▶ STEP 82: CLICK -> L80 Reimu Skill 1
+[00:03:33] ▶ STEP 83: CLICK -> Cz1# Marisa Skill 1
+[00:03:36] ▶ STEP 84: CLICK -> Cz1# Marisa Skill 2
+[00:03:39] ▶ STEP 85: CLICK -> Close Skill
+[00:03:40] ▶ STEP 86: CLICK -> L80 Reimu Spread Shot
+[00:03:41] ▶ STEP 87: CLICK -> Open Spell
+[00:03:42] ▶ STEP 88: BOOST -> 3
+[00:03:44] ▶ STEP 89: CLICK -> Cz1# Marisa LastWord
+[00:03:45] ▶ STEP 90: WAIT_FOR_SCREEN -> BATTLE_SCREEN
+[00:04:01] ▶ STEP 91: CLICK -> Open Skill
+[00:04:02] ▶ STEP 92: CLICK -> L80 Reimu Skill 1
+[00:04:05] ▶ STEP 93: CLICK -> L80 Reimu Skill 2
+[00:04:09] ▶ STEP 94: CLICK -> Close Skill
+[00:04:10] ▶ STEP 95: CLICK -> Open Spell
+[00:04:11] ▶ STEP 96: BOOST -> 3
+[00:04:13] ▶ STEP 97: CLICK -> L80 Reimu LastWord
+[00:04:14] ▶ STEP 98: BOOST -> 2
+[00:04:15] ▶ STEP 99: CLICK -> Cz1# Marisa Spread Shot
+[00:04:16] ▶ STEP 100: WAIT_FOR_SCREEN -> END_BATTLE_SCREEN
+[00:04:41] ▶ STEP 101: END_AREA -> None
+[00:04:41] ▶ STEP 103: START_AREA -> 3
+[00:04:41] ▶ STEP 104: CLICK_SKIP_CORNER -> 1
+[00:04:43] ▶ STEP 105: WAIT_FOR_SCREEN -> BUFF_SCREEN
+[00:04:44] ▶ STEP 106: SELECT_BUFF -> Strict Tier 1
+[00:04:44] 🔍 [SCAN] Scanning Buff (Area 3)...
+[00:04:49] ▶ STEP 107: CLICK_SKIP_CORNER -> 2
+[00:04:52] ▶ STEP 108: SELECT_BUFF -> Any Tier
+[00:04:52] 🔍 [SCAN] Scanning Buff (Area 3)...
+[00:04:56] ▶ STEP 109: CLICK_SKIP_CORNER -> 2
+[00:04:59] ▶ STEP 110: CHOOSE_DIFFICULTY -> lunatic
+[00:05:00] ▶ STEP 111: CLICK -> Challenge
+[00:05:01] ▶ STEP 112: WAIT_FOR_SCREEN -> PREPARE_SCREEN
+[00:05:06] ▶ STEP 113: CLICK -> Battle
+[00:05:07] ▶ STEP 114: WAIT_FOR_SCREEN -> BATTLE_SCREEN
+[00:05:18] ▶ STEP 115: CLICK -> Open Skill
+[00:05:19] ▶ STEP 116: CLICK -> L80 Reimu Skill 1
+[00:05:22] ▶ STEP 117: CLICK -> Cz1# Marisa Skill 1
+[00:05:26] ▶ STEP 118: CLICK -> Cz1# Marisa Skill 2
+[00:05:29] ▶ STEP 119: CLICK -> Close Skill
+[00:05:30] ▶ STEP 120: CLICK -> L80 Reimu Spread Shot

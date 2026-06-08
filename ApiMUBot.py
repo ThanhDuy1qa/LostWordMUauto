@@ -47,12 +47,18 @@ def custom_print(*args, **kwargs):
             os.makedirs(log_date_dir, exist_ok=True)
             
         log_file = os.path.join(log_date_dir, "bot_log.txt")
-        with open(log_file, "a", encoding="utf-8") as f:
-            f.write(out_msg + "\n")
+        try:
+            with open(log_file, "a", encoding="utf-8") as f:
+                f.write(out_msg + "\n")
+        except: pass
         
-    # Luôn in ra console
-    sys.stdout.write(out_msg + "\n")
-    sys.stdout.flush()
+    # Luôn in ra console (chỉ khi stdout tồn tại)
+    try:
+        if sys.stdout is not None:
+            sys.stdout.write(out_msg + "\n")
+            sys.stdout.flush()
+    except: pass
+
 
 print = custom_print
 
@@ -167,7 +173,12 @@ class DynamicGroupBot:
         self.root.title("Api Moriya Unmapped Auto")
         self.root.geometry("1050x1000")
         
-        icon_path = os.path.join(BASE_DIR, "icon.ico")
+        def resource_path(relative_path):
+            try: base_path = sys._MEIPASS
+            except Exception: base_path = os.path.abspath(".")
+            return os.path.join(base_path, relative_path)
+            
+        icon_path = resource_path("icon.ico")
         if os.path.exists(icon_path):
             try: self.root.iconbitmap(icon_path)
             except: pass
@@ -212,7 +223,7 @@ class DynamicGroupBot:
         self.rescue_keys = [
             "Close Emulator", 
             "Game Desktop Icon", "Center Screen", 
-            "Moriya Unmapped", "Give Up Run"
+            "Give Up Run" # Xoá Moriya Unmapped khỏi đây để dùng ảnh
         ]
         
         self.all_possible_keys = []
@@ -239,7 +250,7 @@ class DynamicGroupBot:
         self.init_hud() 
         self.init_osd()
         self.auto_load_last_profile()
-        self.sync_logging_state() # Đồng bộ state log lúc khởi tạo
+        self.sync_logging_state()
 
     def sync_logging_state(self):
         global GLOBAL_ENABLE_LOG_FILE
@@ -469,7 +480,7 @@ class DynamicGroupBot:
         frame_rescue_opt = ttk.Frame(frame_settings)
         frame_rescue_opt.grid(row=6, column=0, columnspan=2, sticky="w", padx=5, pady=5)
         self.var_enable_rescue = tk.BooleanVar(value=False) 
-        self.chk_rescue = ttk.Checkbutton(frame_rescue_opt, text="Restart Emulator if frozen", variable=self.var_enable_rescue, command=self.toggle_rescue_sub)
+        self.chk_rescue = ttk.Checkbutton(frame_rescue_opt, text="Enable Auto Rescue (Restart Emulator if frozen)", variable=self.var_enable_rescue, command=self.toggle_rescue_sub)
         self.chk_rescue.pack(anchor="w", padx=5)
         
         self.frame_rescue_sub = ttk.Frame(frame_settings)
@@ -485,19 +496,13 @@ class DynamicGroupBot:
         
         self.frame_rescue_time = ttk.Frame(frame_settings)
         self.frame_rescue_time.grid(row=8, column=0, columnspan=2, sticky="w", padx=30, pady=2)
-        self.var_wait_emu = tk.IntVar(value=60)
         self.var_wait_cleanup = tk.IntVar(value=30)
         self.var_timeout_limit = tk.IntVar(value=90)
         
-        ttk.Label(self.frame_rescue_time, text="Emu Load Wait (s):").pack(side="left")
-        self.entry_wait_emu = ttk.Entry(self.frame_rescue_time, textvariable=self.var_wait_emu, width=5)
-        self.entry_wait_emu.pack(side="left", padx=5)
-        
-        ttk.Label(self.frame_rescue_time, text="Game Load Wait (s):").pack(side="left", padx=(10, 0))
+        ttk.Label(self.frame_rescue_time, text="Game Load Wait (s):").pack(side="left")
         self.entry_wait_cleanup = ttk.Entry(self.frame_rescue_time, textvariable=self.var_wait_cleanup, width=5)
         self.entry_wait_cleanup.pack(side="left", padx=5)
         
-        # New configurable timeout limit entry
         ttk.Label(self.frame_rescue_time, text="Screen Timeout (s):").pack(side="left", padx=(10, 0))
         self.entry_timeout = ttk.Entry(self.frame_rescue_time, textvariable=self.var_timeout_limit, width=5)
         self.entry_timeout.pack(side="left", padx=5)
@@ -600,11 +605,11 @@ class DynamicGroupBot:
             mss.tools.to_png(sct_img.rgb, sct_img.size, output=filename)
             
             print("\n" + "="*50)
-            print(f"📸 [SCREENSHOT] Error evidence saved (Area {self.current_area}) at: {filename}")
+            print(f"📸 [SCREENSHOT] Đã lưu bằng chứng lỗi (Area {self.current_area}) tại: {filename}")
             print("="*50 + "\n")
         except Exception as e:
             print("\n" + "="*50)
-            print(f"[-] Error saving screenshot: {e}")
+            print(f"[-] Lỗi khi lưu ảnh chụp màn hình: {e}")
             print("="*50 + "\n")
 
     def auto_load_last_profile(self):
@@ -631,7 +636,6 @@ class DynamicGroupBot:
         state = "normal" if self.var_enable_rescue.get() else "disabled"
         self.chk_rescue_smart.config(state=state)
         self.chk_rescue_date.config(state=state)
-        self.entry_wait_emu.config(state=state)
         self.entry_wait_cleanup.config(state=state)
         self.entry_timeout.config(state=state)
         try: self.update_counter_display()
@@ -703,7 +707,7 @@ class DynamicGroupBot:
                 else: self.listbox.itemconfig(self.last_highlighted_idx, bg="white", fg="black") 
             
             if idx < self.listbox.size():
-                self.listbox.itemconfig(idx, bg="#ffff00", fg="black")
+                self.listbox.itemconfig(idx, bg="#87ceeb", fg="black")
                 self.listbox.see(idx)
                 self.last_highlighted_idx = idx
         except: pass
@@ -976,7 +980,7 @@ class DynamicGroupBot:
             elif "[END_AREA]" in text: self.listbox.itemconfig(i, bg="#ffd6e7", fg="black") 
             elif "[SEPARATOR]" in text: self.listbox.itemconfig(i, bg="#f0f0f0", fg="#888888") 
             elif "[CLICK] -> Battle" in text: self.listbox.itemconfig(i, bg="#ffb6c1", fg="black") 
-            else: self.listbox.itemconfig(i, bg="white", fg="black") 
+            else: self.listbox.itemconfig(i, bg="white", fg="black")
 
     def auto_format_list(self):
         count = 0
@@ -1123,7 +1127,6 @@ class DynamicGroupBot:
                 "save_error_screenshots": self.var_save_error_screenshots.get(),
                 "show_osd": self.var_show_osd.get(),
                 "rescue_date_changed": self.var_rescue_date_changed.get(),
-                "wait_emu": self.var_wait_emu.get(),
                 "wait_cleanup": self.var_wait_cleanup.get(),
                 "timeout_limit": self.var_timeout_limit.get()
             }
@@ -1176,7 +1179,6 @@ class DynamicGroupBot:
                 self.var_save_error_screenshots.set(options_data.get("save_error_screenshots", True))
                 self.var_show_osd.set(options_data.get("show_osd", True))
                 self.var_rescue_date_changed.set(options_data.get("rescue_date_changed", False))
-                self.var_wait_emu.set(options_data.get("wait_emu", 60))
                 self.var_wait_cleanup.set(options_data.get("wait_cleanup", 30))
                 self.var_timeout_limit.set(options_data.get("timeout_limit", 90))
                 
@@ -1248,9 +1250,15 @@ class DynamicGroupBot:
         return -1
 
     def click_image_on_screen(self, img_name, max_retries=5, delay=2.0, custom_conf=0.75):
-        """Find image on screen and click it"""
+        """Find image on screen and click it, with grayscale fallback"""
         for _ in range(max_retries):
+            # 1. Thử tìm ảnh màu
             pos = self.vision.get_pos(img_name, conf=custom_conf)
+            
+            # 2. Nếu không thấy, thử tìm ảnh đen trắng (grayscale)
+            if not pos:
+                pos = self.vision.get_pos(img_name, conf=custom_conf, gray=True)
+                
             if pos:
                 self.root.after(0, lambda n=img_name, px=pos[0], py=pos[1]: self.show_osd(f"📸 Dùng ảnh: {n}", px, py))
                 pyautogui.click(x=pos[0], y=pos[1])
@@ -1267,7 +1275,6 @@ class DynamicGroupBot:
         print("="*50)
         self.update_info_label("Date Changed! Restarting 3 times...")
         
-        wait_emu = self.var_wait_emu.get()
         wait_cleanup = self.var_wait_cleanup.get()
         
         # --- THỰC HIỆN LẶP 3 LẦN THOÁT - VÀO LẠI ---
@@ -1276,10 +1283,12 @@ class DynamicGroupBot:
             print(f"▶ [DATE CHANGED] Reset lần {i+1}/3...")
             self.update_info_label(f"Date Changed Reset ({i+1}/3)...")
             
-            # 1. Tắt giả lập
-            self.click_coord("Close Emulator", delay=2.0)
-            if not self.click_image_on_screen("btn_close_emu_confirm.png", max_retries=3, delay=3.0, custom_conf=0.7):
-                self.click_coord("Confirm Close Emu", delay=5.0)
+            # 1. Tắt giả lập (Thử bấm X và tìm nút Đóng nhiều lần)
+            for _ in range(3):
+                self.click_coord("Close Emulator", delay=2.0)
+                print("▶ Searching for Exit Confirmation image (btn_close_emu_confirm.png)...")
+                if self.click_image_on_screen("btn_close_emu_confirm.png", max_retries=3, delay=3.0, custom_conf=0.7):
+                    break
             
             # 2. Ẩn cửa sổ và mở lại bằng icon
             pyautogui.keyDown('win')
@@ -1287,25 +1296,38 @@ class DynamicGroupBot:
             pyautogui.press('d')
             time.sleep(0.1)
             pyautogui.keyUp('win')
-            time.sleep(1.5)
+            time.sleep(2.0)
             
             coord_icon = self.coords.get("Game Desktop Icon")
             if coord_icon and coord_icon["x"] > 0:
                 pyautogui.moveTo(coord_icon["x"], coord_icon["y"])
+                pyautogui.click() # Cần click 1 cái để focus icon trên win 11
+                time.sleep(0.5)
                 pyautogui.doubleClick()
                 
-            self.wait_with_jump(wait_emu) 
-            
-            # 3. Phóng to toàn màn hình
-            if not self.click_image_on_screen("btn_fullscreen.png", max_retries=5, delay=2.0, custom_conf=0.8):
-                self.click_coord("Full Screen", delay=2.0)
-            
-            # 4. Ấn vào giữa màn hình
+            # 3. Phóng to toàn màn hình (Đợi giả lập lên)
+            print("▶ Đang chờ giả lập khởi động (tìm nút Full Screen)...")
+            for _ in range(60):
+                if not self.is_running: return
+                if self.click_image_on_screen("btn_fullscreen.png", max_retries=1, delay=1.0, custom_conf=0.7):
+                    print("▶ Đã phóng to toàn màn hình!")
+                    break
+
+            # 4. Chờ màn hình Game tải (Tìm ảnh màn hình chờ)
+            print("▶ Đang chờ màn hình game tải (tìm game_start_screen.png)...")
+            for _ in range(120):
+                if not self.is_running: return
+                if self.vision.get_pos("game_start_screen.png", conf=0.75) or self.vision.get_pos("game_start_screen.png", conf=0.75, gray=True):
+                    print("▶ Đã thấy màn hình chờ game!")
+                    break
+                time.sleep(1.0)
+                
+            # 5. Ấn vào giữa màn hình
             for _ in range(2): 
                 if not self.is_running: return
                 self.click_coord("Center Screen", delay=1.0)
                 
-            # 5. Chờ thời gian dọn dẹp rồi thoát liền
+            # 6. Chờ thời gian dọn dẹp rồi thoát liền
             print(f"▶ [DATE CHANGED] Chờ {wait_cleanup} giây dọn rác điểm danh...")
             self.wait_with_jump(wait_cleanup)
             
@@ -1313,19 +1335,38 @@ class DynamicGroupBot:
         print("▶ [DATE CHANGED] Hoàn tất 3 lần reset. Vào game để tiếp tục...")
         self.update_info_label("Reset done. Resuming Smart Jump...")
         
-        self.click_coord("Moriya Unmapped", delay=5.0)
+        print("▶ Searching for Moriya Unmapped button (btn_moriya_unmapped.png)...")
+        self.click_image_on_screen("btn_moriya_unmapped.png", max_retries=10, delay=5.0, custom_conf=0.75)
         self.click_coord("Main Stage", delay=2.0)
         self.click_coord("Challenge", delay=8.0) 
 
         # Xử lý Smart Jump logic
+        is_buff = self.vision.get_pos("btn_redraw.png") or self.vision.get_pos("btn_redraw_dark.png")
+        
         if self.var_rescue_smart.get():
-            print(f"⏭️ [SMART JUMP] Đã bật Smart Jump, quay về đầu Area {self.current_area}...")
-            self.update_info_label(f"Jumping to Start of Area {self.current_area}...")
-            idx = self.find_area_start_index(self.current_area)
-            if idx != -1:
-                self.jump_area_flag = idx
+            if is_buff:
+                if self.has_entered_battle:
+                    print("⏭️ [SMART JUMP] Found Buff after Battle -> Jumping to Next Area!")
+                    self.update_info_label("Jumping to Next Area...")
+                    next_area = self.current_area + 1
+                    idx = self.find_area_start_index(next_area)
+                    self.jump_area_flag = idx if idx != -1 else -1
+                    if idx == -1: self.reset_run_flag = True
+                else:
+                    print("🔄 [SMART JUMP] Found Buff before Battle -> Restarting Current Area!")
+                    self.update_info_label("Restarting Current Area...")
+                    idx = self.find_area_start_index(self.current_area)
+                    self.jump_area_flag = idx if idx != -1 else -1
+                    if idx == -1: self.reset_run_flag = True
             else:
-                self.reset_run_flag = True
+                print("🔄 [SMART JUMP] Not in lobby -> Retrying Difficulty Selection...")
+                self.update_info_label("Retrying Difficulty Selection...")
+                curr_idx = self.find_area_start_index(self.current_area)
+                if curr_idx != -1:
+                    diff_idx = self.find_first_action_in_area(curr_idx, "CHOOSE_DIFFICULTY")
+                    self.jump_area_flag = diff_idx if diff_idx != -1 else curr_idx
+                else:
+                    self.reset_run_flag = True
         else:
             print("⚠️ [DATE CHANGED] Smart Jump đang tắt, tiến hành Give Up Run...")
             self.perform_basic_rescue()
@@ -1352,10 +1393,12 @@ class DynamicGroupBot:
         if not coord_close or coord_close["x"] == 0:
             print("❌ ERROR: 'Close Emulator' coordinates not set!")
         
-        self.click_coord("Close Emulator", delay=2.0)
-        
-        print("▶ Searching for Exit Confirmation image (btn_close_emu_confirm.png)...")
-
+        # Thử bấm tắt và nhận diện 3 lần để chắc chắn tắt
+        for _ in range(3):
+            self.click_coord("Close Emulator", delay=2.0)
+            print("▶ Searching for Exit Confirmation image (btn_close_emu_confirm.png)...")
+            if self.click_image_on_screen("btn_close_emu_confirm.png", max_retries=3, delay=3.0, custom_conf=0.7):
+                break
         
         print("▶ Closing all windows (Win + D)...")
         pyautogui.keyDown('win')
@@ -1363,31 +1406,54 @@ class DynamicGroupBot:
         pyautogui.press('d')
         time.sleep(0.1)
         pyautogui.keyUp('win')
-        time.sleep(1.5)
+        time.sleep(2.0)
         
         coord_icon = self.coords.get("Game Desktop Icon")
         if coord_icon and coord_icon["x"] > 0:
             print("▶ Reopening emulator...")
             pyautogui.moveTo(coord_icon["x"], coord_icon["y"])
+            pyautogui.click() # Cần click 1 cái để focus icon trên win 11
+            time.sleep(0.5)
             pyautogui.doubleClick()
         else:
             print("❌ ERROR: Game Desktop Icon coordinates not set!")
             
-        wait_emu = self.var_wait_emu.get()
         wait_cleanup = self.var_wait_cleanup.get()
             
-        self.wait_with_jump(wait_emu) 
-            
-        print("▶ Searching for Full Screen image (btn_fullscreen.png)...")
-
+        # 3. Phóng to toàn màn hình (Đợi giả lập lên)
+        print("▶ Đang chờ giả lập khởi động (tìm nút Full Screen)...")
+        for _ in range(60):
+            if not self.is_running: return
+            if self.click_image_on_screen("btn_fullscreen.png", max_retries=1, delay=1.0, custom_conf=0.7):
+                print("▶ Đã phóng to toàn màn hình!")
+                break
         
+        # 4. Chờ màn hình Game tải
+        print("▶ Đang chờ màn hình game tải (tìm game_start_screen.png)...")
+        for _ in range(120):
+            if not self.is_running: return
+            if self.vision.get_pos("game_start_screen.png", conf=0.75) or self.vision.get_pos("game_start_screen.png", conf=0.75, gray=True):
+                print("▶ Đã thấy màn hình chờ game!")
+                break
+            time.sleep(1.0)
+        
+        # 5. Ấn vào giữa màn hình
         for _ in range(2): 
             if not self.is_running: return
             self.click_coord("Center Screen", delay=1.0)
             
         self.wait_with_jump(wait_cleanup) 
             
-        self.click_coord("Moriya Unmapped", delay=5.0)
+        print("▶ Đang chờ vào sảnh chính (tìm nút Moriya Unmapped)...")
+        for _ in range(120): # Timeout 120s
+            if not self.is_running: return
+            if self.vision.get_pos("btn_moriya_unmapped.png", conf=0.75) or self.vision.get_pos("btn_moriya_unmapped.png", conf=0.75, gray=True):
+                print("▶ Đã vào đến sảnh chính!")
+                break
+            self.click_coord("Center Screen", delay=1.0)
+            
+        print("▶ Searching for Moriya Unmapped button (btn_moriya_unmapped.png)...")
+        self.click_image_on_screen("btn_moriya_unmapped.png", max_retries=5, delay=5.0, custom_conf=0.75)
         self.click_coord("Main Stage", delay=2.0)
         self.click_coord("Challenge", delay=6.0)
 
@@ -1436,13 +1502,17 @@ class DynamicGroupBot:
         
         self.party_setup_done_in_area1 = False
         
-        is_buff = self.vision.get_pos("btn_redraw.png") or self.vision.get_pos("btn_redraw_dark.png")
-        if is_buff:
-            print("▶ Found Buff screen, clicking Random Buff...")
-            self.click_coord("Random Buff", delay=1.0)
-            self.click_auto_confirm(max_wait=3, target_img="btn_confirm.png")
-            self.wait_with_jump(2.0)
-            
+        # Kiểm tra tối đa 2 lần chọn buff
+        for _ in range(2):
+            is_buff = self.vision.get_pos("btn_redraw.png") or self.vision.get_pos("btn_redraw_dark.png")
+            if is_buff:
+                print("▶ Found Buff screen, clicking Random Buff...")
+                self.click_coord("Random Buff", delay=1.0)
+                self.click_auto_confirm(max_wait=3, target_img="btn_confirm.png")
+                self.wait_with_jump(2.0)
+            else:
+                break
+                
         self.click_coord("Party Back", delay=2.0)
         self.click_coord("Give Up Run", delay=2.0)
         self.click_auto_confirm(max_wait=4, target_img="btn_confirm.png")
@@ -1595,7 +1665,8 @@ class DynamicGroupBot:
                 self.save_error_screenshot("GameOver")
                 print("❌ [FAILED] GAME OVER DETECTED! Resetting Run...")
                 self.update_info_label("Game Over detected. Skipping and resetting...")
-                for _ in range(5):
+                # THAY ĐỔI: ẤN SKIP CORNER 7 LẦN KHI THUA CUỘC
+                for _ in range(7):
                     self.click_coord("Skip Corner", 0.5)
                 self.reset_run_flag = True
                 return
