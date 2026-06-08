@@ -1,0 +1,11 @@
+# Chặn toàn bộ file thực thi
+*.exe
+*.zip
+*.rar
+
+# Chặn thư mục build và logs
+build/
+dist/
+logs/
+errors/
+__pycache__/
