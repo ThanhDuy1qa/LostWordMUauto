@@ -1510,6 +1510,12 @@ class DynamicGroupBot:
                 self.click_coord("Random Buff", delay=1.0)
                 self.click_auto_confirm(max_wait=3, target_img="btn_confirm.png")
                 self.wait_with_jump(2.0)
+                
+                # ------ CHÈN THÊM VÀO ĐÂY ------
+                print("▶ Skipping corners after picking buff...")
+                for _ in range(3):
+                    self.click_coord("Skip Corner", 0.5)
+                # -------------------------------
             else:
                 break
                 
@@ -1618,6 +1624,11 @@ class DynamicGroupBot:
             pyautogui.moveTo(x=coord["x"], y=coord["y"], duration=0.15)
             time.sleep(0.1)
             pyautogui.click(clicks=1)
+            
+            # [CẬP NHẬT V45]: Thêm delay riêng cho Selected Grid Pos
+            if "Selected Grid Pos" in key_name:
+                time.sleep(1.0)
+            
             self.wait_with_jump(delay)
         else:
             print(f"[-] Warning: Coordinates for {key_name} not set or found!")
